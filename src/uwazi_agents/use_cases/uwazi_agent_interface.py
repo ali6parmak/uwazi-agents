@@ -3,83 +3,112 @@ from uwazi_api.UwaziAdapter import UwaziAdapter
 
 from uwazi_agents.config import url, user, password
 from uwazi_agents.domain.Template import Template
+from uwazi_agents.domain.TemplateProperty import TemplateProperty
 
 
 @tool
-def get_all_templates() -> str:
+def get_all_templates(fields: str) -> str:
     """
-    Retrieves all templates from Uwazi instance as XML.
+    Retrieves all templates from Uwazi instance as XML with configurable field selection.
 
     This tool connects to a Uwazi instance and fetches all available templates.
     Templates define the structure of entities in Uwazi, containing properties
     that define the fields entities can have.
 
+    AI agents can specify which fields to include in the XML output to reduce
+    data size and processing time. Only the requested fields will be included
+    in the response.
+
+    Args:
+        fields (str): Comma-separated list of fields to include in the XML output.
+                      Available fields: id, name, properties, commonProperties
+                      Example: "id,name,properties" to include template properties
+                      Use "all" to include all available fields
+
     Returns:
-        str: XML string containing all templates. Each template has an id, name,
-             and lists of properties. Properties have name and type attributes.
-             Returns empty templates element if no templates found or on error.
+        str: XML formatted string containing templates with requested fields.
+             Returns empty templates element on error or if no credentials.
     """
     try:
         if not all([url, user, password]):
-            return "<templates></templates>"
+            return '<?xml version="1.0" encoding="UTF-8"?><templates></templates>'
+
         uwazi = UwaziAdapter(user=user, password=password, url=url)
         templates_raw = uwazi.templates.get()
+
+        requested_fields = [f.strip() for f in fields.split(",")] if fields != "all" else ["id", "name", "properties", "commonProperties"]
 
         xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>', '<templates>']
 
         for template in templates_raw:
             xml_parts.append('  <template>')
-            xml_parts.append(f'    <id>{template.get("_id", "")}</id>')
-            xml_parts.append(f'    <name>{template.get("name", "")}</name>')
 
-            xml_parts.append('    <properties>')
-            for prop in template.get('properties', []):
-                xml_parts.append('      <property>')
-                xml_parts.append(f'        <name>{prop.get("name", "")}</name>')
-                xml_parts.append(f'        <type>{prop.get("type", "")}</type>')
-                if prop.get('label'):
-                    xml_parts.append(f'        <label>{prop.get("label")}</label>')
-                xml_parts.append('      </property>')
-            xml_parts.append('    </properties>')
+            if "id" in requested_fields:
+                xml_parts.append(f'    <id>{template.get("_id", "")}</id>')
 
-            xml_parts.append('    <commonProperties>')
-            for prop in template.get('commonProperties', []):
-                xml_parts.append('      <property>')
-                xml_parts.append(f'        <name>{prop.get("name", "")}</name>')
-                xml_parts.append(f'        <type>{prop.get("type", "")}</type>')
-                if prop.get('label'):
-                    xml_parts.append(f'        <label>{prop.get("label")}</label>')
-                xml_parts.append('      </property>')
-            xml_parts.append('    </commonProperties>')
+            if "name" in requested_fields:
+                xml_parts.append(f'    <name>{template.get("name", "")}</name>')
+
+            if "properties" in requested_fields:
+                xml_parts.append('    <properties>')
+                for prop in template.get('properties', []):
+                    xml_parts.append('      <property>')
+                    xml_parts.append(f'        <name>{prop.get("name", "")}</name>')
+                    xml_parts.append(f'        <type>{prop.get("type", "")}</type>')
+                    if prop.get('label'):
+                        xml_parts.append(f'        <label>{prop.get("label", "")}</label>')
+                    xml_parts.append('      </property>')
+                xml_parts.append('    </properties>')
+
+            if "commonProperties" in requested_fields:
+                xml_parts.append('    <commonProperties>')
+                for prop in template.get('commonProperties', []):
+                    xml_parts.append('      <property>')
+                    xml_parts.append(f'        <name>{prop.get("name", "")}</name>')
+                    xml_parts.append(f'        <type>{prop.get("type", "")}</type>')
+                    if prop.get('label'):
+                        xml_parts.append(f'        <label>{prop.get("label", "")}</label>')
+                    xml_parts.append('      </property>')
+                xml_parts.append('    </commonProperties>')
 
             xml_parts.append('  </template>')
 
         xml_parts.append('</templates>')
         return '\n'.join(xml_parts)
     except Exception as e:
-        return "<templates></templates>"
+        return '<?xml version="1.0" encoding="UTF-8"?><templates></templates>'
 
 
 @tool
-def get_all_entities(template_id: str, batch_size: int = 30, language: str = "en") -> list:
+def get_all_entities(template_id: str, fields: str, batch_size: int = 30, language: str = "en") -> str:
     """
-    Retrieves all entities for a given template from Uwazi instance, handling pagination.
+    Retrieves all entities for a given template from Uwazi instance as XML with configurable field selection.
 
-    This tool connects to a Uwazi instance using credentials from environment variables
-    and fetches all entities for a specified template. It handles pagination automatically,
-    retrieving entities in batches.
+    This tool connects to a Uwazi instance and fetches all entities for a specified template.
+    It handles pagination automatically, retrieving entities in batches until all entities
+    are collected.
+
+    AI agents can specify which fields to include in the XML output to reduce
+    data size and processing time. Only the requested fields will be included
+    in the response.
 
     Args:
         template_id (str): The id of the template for which to retrieve entities.
+        fields (str): Comma-separated list of fields to include in the XML output.
+                      Available fields: id, sharedId, title, template, metadata
+                      Example: "id,title" for minimal output
+                      Use "all" to include all available fields
         batch_size (int): The number of entities to retrieve per batch (default: 30).
         language (str): The language in which to retrieve the entities (default: "en").
 
     Returns:
-        list: A list of entities for the specified template.
+        str: XML formatted string containing entities with requested fields.
+             Returns empty entities element on error or if no credentials.
     """
     try:
         if not all([url, user, password]):
-            return ["Error: Missing required environment variables (UWAZI_URL, UWAZI_USER, UWAZI_PASSWORD)"]
+            return '<?xml version="1.0" encoding="UTF-8"?><entities></entities>'
+
         uwazi = UwaziAdapter(user=user, password=password, url=url)
         entities = []
         start_from = 0
@@ -91,9 +120,40 @@ def get_all_entities(template_id: str, batch_size: int = 30, language: str = "en
             if len(batch) < batch_size:
                 break
             start_from += batch_size
-        return entities
+
+        requested_fields = [f.strip() for f in fields.split(",")] if fields != "all" else ["id", "sharedId", "title", "template", "metadata"]
+
+        xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>', '<entities>']
+
+        for entity in entities:
+            xml_parts.append('  <entity>')
+
+            if "id" in requested_fields and "_id" in entity:
+                xml_parts.append(f'    <id>{entity.get("_id", "")}</id>')
+
+            if "sharedId" in requested_fields and "sharedId" in entity:
+                xml_parts.append(f'    <sharedId>{entity.get("sharedId", "")}</sharedId>')
+
+            if "title" in requested_fields and "title" in entity:
+                xml_parts.append(f'    <title>{entity.get("title", "")}</title>')
+
+            if "template" in requested_fields and "template" in entity:
+                xml_parts.append(f'    <template>{entity.get("template", "")}</template>')
+
+            if "metadata" in requested_fields and "metadata" in entity:
+                metadata = entity.get("metadata", {})
+                if metadata:
+                    xml_parts.append('    <metadata>')
+                    for key, value in metadata.items():
+                        xml_parts.append(f'      <{key}>{value}</{key}>')
+                    xml_parts.append('    </metadata>')
+
+            xml_parts.append('  </entity>')
+
+        xml_parts.append('</entities>')
+        return '\n'.join(xml_parts)
     except Exception as e:
-        return [f"Error retrieving entities: {str(e)}"]
+        return '<?xml version="1.0" encoding="UTF-8"?><entities></entities>'
 
 
 @tool
@@ -175,6 +235,38 @@ def create_template(template: Template, language: str = "en") -> dict:
 
 
 if __name__ == '__main__':
-    pass
+    # pass
     # print(get_all_templates())
-    # print(get_all_entities(template_id="6912059adeb0c2aa4cfc8ec4"))
+    # result = get_all_entities(template_id="6912059adeb0c2aa4cfc8ec4", fields="id")
+    title_common_prop = TemplateProperty(
+        label="Title",
+        name="title",
+        type="text",
+        isCommonProperty=True
+    )
+    creation_date_common_prop = TemplateProperty(
+        label="Date added",
+        name="creationDate",
+        type="date",
+        isCommonProperty=True
+    )
+    edit_date_common_prop = TemplateProperty(
+        label="Date modified",
+        name="editDate",
+        type="date",
+        isCommonProperty=True
+    )
+
+    test_template = Template(
+        name="test_2",
+        color="#C03B22",
+        properties=[],
+        commonProperties=[
+            title_common_prop,
+            creation_date_common_prop,
+            edit_date_common_prop
+        ]
+    )
+
+    creation_result = create_template(template=test_template, language="en")
+    print(creation_result)

@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class PropertyType(str, Enum):
+class PropertyType(StrEnum):
     TEXT = "text"
     MARKDOWN = "markdown"
     NUMERIC = "numeric"
