@@ -1,3 +1,4 @@
 smolagents[litellm]
 pydantic
+black
 git+https://github.com/huridocs/python_uwazi_API@2025.10.17.1

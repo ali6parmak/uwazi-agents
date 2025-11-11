@@ -11,4 +11,3 @@ class Template(BaseModel):
     entityViewPage: Optional[str] = ""
     properties: list[TemplateProperty]
     commonProperties: Optional[list[TemplateProperty]] = None
-

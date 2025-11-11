@@ -17,4 +17,3 @@ class TemplateProperty(BaseModel):
     style: Optional[str] = ""
     generatedId: Optional[bool] = False
     isCommonProperty: Optional[bool] = False
-

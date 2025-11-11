@@ -2,8 +2,6 @@ from smolagents import tool
 from uwazi_api.UwaziAdapter import UwaziAdapter
 
 from uwazi_agents.config import url, user, password
-from uwazi_agents.domain.Template import Template
-from uwazi_agents.domain.TemplateProperty import TemplateProperty
 
 
 @tool
@@ -36,12 +34,14 @@ def get_all_templates(fields: str) -> str:
         uwazi = UwaziAdapter(user=user, password=password, url=url)
         templates_raw = uwazi.templates.get()
 
-        requested_fields = [f.strip() for f in fields.split(",")] if fields != "all" else ["id", "name", "properties", "commonProperties"]
+        requested_fields = (
+            [f.strip() for f in fields.split(",")] if fields != "all" else ["id", "name", "properties", "commonProperties"]
+        )
 
-        xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>', '<templates>']
+        xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>', "<templates>"]
 
         for template in templates_raw:
-            xml_parts.append('  <template>')
+            xml_parts.append("  <template>")
 
             if "id" in requested_fields:
                 xml_parts.append(f'    <id>{template.get("_id", "")}</id>')
@@ -50,31 +50,31 @@ def get_all_templates(fields: str) -> str:
                 xml_parts.append(f'    <name>{template.get("name", "")}</name>')
 
             if "properties" in requested_fields:
-                xml_parts.append('    <properties>')
-                for prop in template.get('properties', []):
-                    xml_parts.append('      <property>')
+                xml_parts.append("    <properties>")
+                for prop in template.get("properties", []):
+                    xml_parts.append("      <property>")
                     xml_parts.append(f'        <name>{prop.get("name", "")}</name>')
                     xml_parts.append(f'        <type>{prop.get("type", "")}</type>')
-                    if prop.get('label'):
+                    if prop.get("label"):
                         xml_parts.append(f'        <label>{prop.get("label", "")}</label>')
-                    xml_parts.append('      </property>')
-                xml_parts.append('    </properties>')
+                    xml_parts.append("      </property>")
+                xml_parts.append("    </properties>")
 
             if "commonProperties" in requested_fields:
-                xml_parts.append('    <commonProperties>')
-                for prop in template.get('commonProperties', []):
-                    xml_parts.append('      <property>')
+                xml_parts.append("    <commonProperties>")
+                for prop in template.get("commonProperties", []):
+                    xml_parts.append("      <property>")
                     xml_parts.append(f'        <name>{prop.get("name", "")}</name>')
                     xml_parts.append(f'        <type>{prop.get("type", "")}</type>')
-                    if prop.get('label'):
+                    if prop.get("label"):
                         xml_parts.append(f'        <label>{prop.get("label", "")}</label>')
-                    xml_parts.append('      </property>')
-                xml_parts.append('    </commonProperties>')
+                    xml_parts.append("      </property>")
+                xml_parts.append("    </commonProperties>")
 
-            xml_parts.append('  </template>')
+            xml_parts.append("  </template>")
 
-        xml_parts.append('</templates>')
-        return '\n'.join(xml_parts)
+        xml_parts.append("</templates>")
+        return "\n".join(xml_parts)
     except Exception as e:
         return '<?xml version="1.0" encoding="UTF-8"?><templates></templates>'
 
@@ -113,7 +113,9 @@ def get_all_entities(template_id: str, fields: str, batch_size: int = 30, langua
         entities = []
         start_from = 0
         while True:
-            batch = uwazi.entities.get(start_from=start_from, batch_size=batch_size, template_id=template_id, language=language)
+            batch = uwazi.entities.get(
+                start_from=start_from, batch_size=batch_size, template_id=template_id, language=language
+            )
             if not batch:
                 break
             entities.extend(batch)
@@ -121,12 +123,16 @@ def get_all_entities(template_id: str, fields: str, batch_size: int = 30, langua
                 break
             start_from += batch_size
 
-        requested_fields = [f.strip() for f in fields.split(",")] if fields != "all" else ["id", "sharedId", "title", "template", "metadata"]
+        requested_fields = (
+            [f.strip() for f in fields.split(",")]
+            if fields != "all"
+            else ["id", "sharedId", "title", "template", "metadata"]
+        )
 
-        xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>', '<entities>']
+        xml_parts = ['<?xml version="1.0" encoding="UTF-8"?>', "<entities>"]
 
         for entity in entities:
-            xml_parts.append('  <entity>')
+            xml_parts.append("  <entity>")
 
             if "id" in requested_fields and "_id" in entity:
                 xml_parts.append(f'    <id>{entity.get("_id", "")}</id>')
@@ -143,74 +149,60 @@ def get_all_entities(template_id: str, fields: str, batch_size: int = 30, langua
             if "metadata" in requested_fields and "metadata" in entity:
                 metadata = entity.get("metadata", {})
                 if metadata:
-                    xml_parts.append('    <metadata>')
+                    xml_parts.append("    <metadata>")
                     for key, value in metadata.items():
-                        xml_parts.append(f'      <{key}>{value}</{key}>')
-                    xml_parts.append('    </metadata>')
+                        xml_parts.append(f"      <{key}>{value}</{key}>")
+                    xml_parts.append("    </metadata>")
 
-            xml_parts.append('  </entity>')
+            xml_parts.append("  </entity>")
 
-        xml_parts.append('</entities>')
-        return '\n'.join(xml_parts)
+        xml_parts.append("</entities>")
+        return "\n".join(xml_parts)
     except Exception as e:
         return '<?xml version="1.0" encoding="UTF-8"?><entities></entities>'
 
 
 @tool
-def create_template(template: Template, language: str = "en") -> dict:
+def create_template(name: str, properties: list[dict], color: str = "#000000", language: str = "en") -> dict:
     """
     Creates a new template in the Uwazi instance.
 
     This tool creates a new template that defines the structure for entities in Uwazi.
-    Templates contain properties that define what fields entities of this type will have.
+    Templates contain properties that define what fields entities will have.
 
-    How to use this tool:
-    1. Create a Template object with name, optional color, and a list of TemplateProperty objects
-    2. Each TemplateProperty should have a label (what users see), type (e.g., 'text', 'date'),
-       and optional configuration (required, showInCard, filter, etc.)
-    3. Pass the Template object to this function
-
-    Example workflow for an AI agent:
-    - To create a "Person" template with text fields for name and bio, and a date field for birth_date:
-      1. Create TemplateProperty objects:
-         - name_prop = TemplateProperty(label="Full Name", type="text", required=True, showInCard=True)
-         - bio_prop = TemplateProperty(label="Biography", type="markdown", showInCard=False)
-         - birth_prop = TemplateProperty(label="Birth Date", type="date", filter=True)
-      2. Create Template object:
-         - template = Template(name="Person", color="#4A90E2", properties=[name_prop, bio_prop, birth_prop])
-      3. Call this function:
-         - result = create_template(template=template, language="en")
-
-    Available property types:
-    - text: Single line text input
-    - markdown: Multi-line text with markdown formatting
-    - numeric: Numeric values
-    - date: Date picker
-    - link: URL links
-    - select: Dropdown selection (single choice)
-    - multiselect: Dropdown selection (multiple choices)
-    - relationship: Link to other entities
-    - nested: Nested sub-properties
-    - image: Image upload
-    - media: Media file upload
-    - preview: Preview of linked documents
-    - geolocation: Geographic coordinates
-
-    Property configuration options (all optional, default to False/""):
-    - required: If True, this field must be filled when creating entities
-    - showInCard: If True, displays in entity card preview
-    - filter: If True, can be used to filter entities in searches
-    - defaultfilter: If True, shown as default filter in UI
-    - prioritySorting: If True, prioritized in sorting operations
-    - noLabel: If True, hides the label in the UI
-    - style: CSS style string for custom styling
+    AI agents should call this function with a template name and a list of property dictionaries.
+    Each property is a simple dictionary with keys like label, type, required, etc.
 
     Args:
-        template (Template): A Template object containing name, optional color, and list of properties
-        language (str): The language code for the template (default: "en")
+        name (str): The name of the template to create
+        properties (list[dict]): List of property dictionaries. Each property dict can have:
+            - label (str, required): Display name for the property. Avoid labels like "Title", "Date added", "Date modified" as they are already created by default
+            - type (str, required): Property type - one of: text, markdown, numeric, date,
+                                   link, select, multiselect, relationship, nested, image,
+                                   media, preview, geolocation
+            - required (bool, optional): If True, field is mandatory. Default: False
+            - showInCard (bool, optional): Show in entity card preview. Default: False
+            - filter (bool, optional): Can be used to filter entities. Default: False
+            - defaultfilter (bool, optional): Show as default filter in UI. Default: False
+            - prioritySorting (bool, optional): Prioritize in sorting. Default: False
+            - noLabel (bool, optional): Hide label in UI. Default: False
+            - style (str, optional): CSS style string. Default: ""
+        color (str, optional): Hex color code for the template. Default: "#000000"
+        language (str, optional): Language code for the template. Default: "en"
 
     Returns:
-        dict: The created template object with its generated ID, or error message if creation fails
+        dict: The created template with its generated ID, or error dict if creation fails
+
+    Example usage for AI agents:
+        create_template(
+            name="Person",
+            properties=[
+                {"label": "Full Name", "type": "text", "required": True, "showInCard": True},
+                {"label": "Biography", "type": "markdown"},
+                {"label": "Birth Date", "type": "date", "filter": True}
+            ],
+            color="#4A90E2"
+        )
     """
     try:
         if not all([url, user, password]):
@@ -218,14 +210,66 @@ def create_template(template: Template, language: str = "en") -> dict:
 
         uwazi = UwaziAdapter(user=user, password=password, url=url)
 
-        template_dict = template.model_dump(exclude_none=True, exclude={"id"})
+        valid_property_fields = {
+            "label",
+            "type",
+            "name",
+            "required",
+            "showInCard",
+            "filter",
+            "defaultfilter",
+            "prioritySorting",
+            "noLabel",
+            "style",
+            "generatedId",
+            "isCommonProperty",
+        }
 
-        if "commonProperties" not in template_dict or template_dict["commonProperties"] is None:
-            template_dict["commonProperties"] = [
+        valid_property_types = {
+            "text",
+            "markdown",
+            "numeric",
+            "date",
+            "link",
+            "select",
+            "multiselect",
+            "relationship",
+            "nested",
+            "image",
+            "media",
+            "preview",
+            "geolocation",
+        }
+
+        cleaned_properties = []
+        for prop in properties:
+            if not isinstance(prop, dict):
+                continue
+
+            if "type" not in prop:
+                continue
+
+            if prop["type"] not in valid_property_types:
+                continue
+
+            cleaned_prop = {key: value for key, value in prop.items() if key in valid_property_fields}
+
+            if "label" not in cleaned_prop:
+                cleaned_prop["label"] = ""
+
+            cleaned_properties.append(cleaned_prop)
+
+        template_dict = {
+            "name": name,
+            "color": color,
+            "entityViewPage": "",
+            "properties": cleaned_properties,
+            "commonProperties": [
                 {"label": "Title", "name": "title", "type": "text", "isCommonProperty": True},
                 {"label": "Date added", "name": "creationDate", "type": "date", "isCommonProperty": True},
-                {"label": "Date modified", "name": "editDate", "type": "date", "isCommonProperty": True}
-            ]
+                {"label": "Date modified", "name": "editDate", "type": "date", "isCommonProperty": True},
+            ],
+        }
 
         result = uwazi.templates.set(language=language, template=template_dict)
         return result
@@ -233,40 +277,17 @@ def create_template(template: Template, language: str = "en") -> dict:
         return {"error": f"Error creating template: {str(e)}"}
 
 
-
-if __name__ == '__main__':
-    # pass
-    # print(get_all_templates())
-    # result = get_all_entities(template_id="6912059adeb0c2aa4cfc8ec4", fields="id")
-    title_common_prop = TemplateProperty(
-        label="Title",
-        name="title",
-        type="text",
-        isCommonProperty=True
-    )
-    creation_date_common_prop = TemplateProperty(
-        label="Date added",
-        name="creationDate",
-        type="date",
-        isCommonProperty=True
-    )
-    edit_date_common_prop = TemplateProperty(
-        label="Date modified",
-        name="editDate",
-        type="date",
-        isCommonProperty=True
-    )
-
-    test_template = Template(
-        name="test_2",
+if __name__ == "__main__":
+    result = create_template(
+        name="test_validation",
+        properties=[
+            {"label": "Valid Property", "type": "text", "required": True},
+            {"label": "Invalid Type", "type": "invalid_type", "required": True},
+            {"label": "Extra Fields", "type": "date", "invalid_field": "should be removed", "another_bad_field": 123},
+            "not a dict",
+            {"label": "Missing Type"},
+            {"label": "Valid Markdown", "type": "markdown", "showInCard": True},
+        ],
         color="#C03B22",
-        properties=[],
-        commonProperties=[
-            title_common_prop,
-            creation_date_common_prop,
-            edit_date_common_prop
-        ]
     )
-
-    creation_result = create_template(template=test_template, language="en")
-    print(creation_result)
+    print(result)

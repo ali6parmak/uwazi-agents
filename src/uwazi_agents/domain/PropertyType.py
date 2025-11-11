@@ -15,4 +15,3 @@ class PropertyType(StrEnum):
     MEDIA = "media"
     PREVIEW = "preview"
     GEOLOCATION = "geolocation"
-
