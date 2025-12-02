@@ -1,4 +1,7 @@
 smolagents[litellm]
 pydantic
 black
-git+https://github.com/huridocs/python_uwazi_API@2025.10.17.1
+git+https://github.com/huridocs/python_uwazi_API@2025.11.25.1
+git+https://github.com/toon-format/toon-python.git
+langgraph
+pandas

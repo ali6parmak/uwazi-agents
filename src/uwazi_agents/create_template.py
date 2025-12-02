@@ -8,45 +8,46 @@ import json
 # HELPER TOOLS FOR AGENT CONTEXT
 # ============================================================================
 
+
 @tool
 def analyze_existing_templates() -> str:
     """
     Analyzes all existing templates and provides a summary of their structure.
-    
+
     This tool helps understand what templates already exist and their characteristics,
     which is useful before creating new templates to avoid duplication.
-    
+
     Returns:
         A formatted text summary of all templates and their properties.
     """
     try:
         if not all([url, user, password]):
             return "Error: Missing Uwazi credentials"
-        
+
         uwazi = UwaziAdapter(user=user, password=password, url=url)
         templates = uwazi.templates.get()
-        
+
         if not templates:
             return "No templates found in the database."
-        
+
         summary_parts = [f"Found {len(templates)} template(s):\n"]
-        
+
         for template in templates:
             summary_parts.append(f"\n--- Template: {template.get('name', 'N/A')} (ID: {template.get('_id', 'N/A')}) ---")
             summary_parts.append(f"Color: {template.get('color', 'N/A')}")
-            
-            properties = template.get('properties', [])
+
+            properties = template.get("properties", [])
             summary_parts.append(f"Number of custom properties: {len(properties)}")
-            
+
             if properties:
                 summary_parts.append("\nCustom Properties:")
                 for prop in properties:
-                    required_str = " (REQUIRED)" if prop.get('required') else ""
-                    filter_str = " (FILTERABLE)" if prop.get('filter') else ""
+                    required_str = " (REQUIRED)" if prop.get("required") else ""
+                    filter_str = " (FILTERABLE)" if prop.get("filter") else ""
                     summary_parts.append(
                         f"  - {prop.get('label', 'N/A')}: {prop.get('type', 'N/A')}{required_str}{filter_str}"
                     )
-        
+
         return "\n".join(summary_parts)
     except Exception as e:
         return f"Error analyzing templates: {str(e)}"
@@ -56,13 +57,13 @@ def analyze_existing_templates() -> str:
 def suggest_template_properties(domain: str) -> str:
     """
     Suggests property structures based on a given domain or use case.
-    
+
     This tool provides intelligent suggestions for what properties a template
     should have based on the domain (e.g., "research paper", "event", "product").
-    
+
     Args:
         domain: The domain or use case for the template (e.g., "research paper", "event", "recipe")
-    
+
     Returns:
         JSON string with suggested properties that can be used with create_template.
     """
@@ -132,37 +133,41 @@ def suggest_template_properties(domain: str) -> str:
             {"label": "Status", "type": "select", "filter": True},
         ],
     }
-    
+
     domain_lower = domain.lower()
     suggestions = None
     matched_domain = None
-    
+
     # Find matching domain
     for key in domain_suggestions:
         if key in domain_lower or domain_lower in key:
             suggestions = domain_suggestions[key]
             matched_domain = key
             break
-    
+
     if not suggestions:
-        return json.dumps({
-            "error": f"No specific suggestions for domain '{domain}'",
-            "hint": "Consider using generic properties like: description (markdown), category (select), date (date), status (select)",
-            "available_domains": list(domain_suggestions.keys())
-        }, indent=2)
-    
+        return json.dumps(
+            {
+                "error": f"No specific suggestions for domain '{domain}'",
+                "hint": "Consider using generic properties like: description (markdown), category (select), date (date), status (select)",
+                "available_domains": list(domain_suggestions.keys()),
+            },
+            indent=2,
+        )
+
     result = {
         "domain": matched_domain,
         "suggested_properties": suggestions,
-        "usage_hint": "Pass the 'suggested_properties' array directly to create_template's properties parameter"
+        "usage_hint": "Pass the 'suggested_properties' array directly to create_template's properties parameter",
     }
-    
+
     return json.dumps(result, indent=2)
 
 
 # ============
 # CORE TOOLS
 # ============
+
 
 @tool
 def get_all_templates(fields: str) -> str:
@@ -347,7 +352,7 @@ def create_template(name: str, properties: list[dict], color: str = "#000000", l
     Args:
         name: The name of the template to create
         properties: List of property dictionaries. Each property dict can have:
-            - label (str, required): Display name for the property. 
+            - label (str, required): Display name for the property.
               Avoid labels like "Title", "Date added", "Date modified" as they are already created by default
             - type (str, required): Property type - one of: text, markdown, numeric, date,
                                    link, select, multiselect, relationship, nested, image,
@@ -383,20 +388,39 @@ def create_template(name: str, properties: list[dict], color: str = "#000000", l
         uwazi = UwaziAdapter(user=user, password=password, url=url)
 
         valid_property_fields = {
-            "label", "type", "name", "required", "showInCard", "filter",
-            "defaultfilter", "prioritySorting", "noLabel", "style",
-            "generatedId", "isCommonProperty",
+            "label",
+            "type",
+            "name",
+            "required",
+            "showInCard",
+            "filter",
+            "defaultfilter",
+            "prioritySorting",
+            "noLabel",
+            "style",
+            "generatedId",
+            "isCommonProperty",
         }
 
         valid_property_types = {
-            "text", "markdown", "numeric", "date", "link", "select",
-            "multiselect", "relationship", "nested", "image", "media",
-            "preview", "geolocation",
+            "text",
+            "markdown",
+            "numeric",
+            "date",
+            "link",
+            "select",
+            "multiselect",
+            "relationship",
+            "nested",
+            "image",
+            "media",
+            "preview",
+            "geolocation",
         }
 
         cleaned_properties = []
         validation_warnings = []
-        
+
         for idx, prop in enumerate(properties):
             if not isinstance(prop, dict):
                 validation_warnings.append(f"Property at index {idx} is not a dictionary, skipping")
@@ -435,11 +459,11 @@ def create_template(name: str, properties: list[dict], color: str = "#000000", l
         }
 
         result = uwazi.templates.set(language=language, template=template_dict)
-        
+
         # Add validation warnings to result
         if validation_warnings:
             result["validation_warnings"] = validation_warnings
-        
+
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({"error": f"Error creating template: {str(e)}"})
@@ -449,24 +473,25 @@ def create_template(name: str, properties: list[dict], color: str = "#000000", l
 # AGENT SETUP EXAMPLE
 # ============================================================================
 
+
 def create_uwazi_agent(model):
     """
     Creates an agent that can intelligently manage Uwazi templates.
-    
+
     The agent can:
     - Analyze existing templates
     - Get suggestions for new templates based on domain
     - Create new templates with proper validation
     - Query entities and templates
-    
+
     Args:
         model: LiteLLMModel or other smolagents-compatible model
-    
+
     Returns:
         Configured CodeAgent instance
     """
     from smolagents import CodeAgent
-    
+
     agent = CodeAgent(
         tools=[
             analyze_existing_templates,
@@ -476,9 +501,9 @@ def create_uwazi_agent(model):
             create_template,
         ],
         model=model,
-        additional_authorized_imports=["json"]
+        additional_authorized_imports=["json"],
     )
-    
+
     return agent
 
 
@@ -486,16 +511,16 @@ def main():
     """
     Demonstrates various ways to use the Uwazi agent.
     """
-    
+
     # ========================================================================
     # SETUP: Create the agent
     # ========================================================================
-    
+
     model = LiteLLMModel(
         model_id="ollama/qwen2.5-coder:14b",  # or any other model
         # api_base="http://localhost:11434",  # if using local Ollama
     )
-    
+
     agent = CodeAgent(
         tools=[
             analyze_existing_templates,
@@ -508,31 +533,29 @@ def main():
         additional_authorized_imports=["json"],
         max_steps=10,  # Limit steps to prevent infinite loops
     )
-    
+
     print("🤖 Uwazi Agent initialized!\n")
-    
+
     # ========================================================================
     # EXAMPLE 1: Simple analysis
     # ========================================================================
-    
+
     print("=" * 80)
     print("EXAMPLE 1: Analyze existing templates")
     print("=" * 80)
-    
-    result = agent.run(
-        "What templates currently exist in the Uwazi system? Give me a detailed summary."
-    )
+
+    result = agent.run("What templates currently exist in the Uwazi system? Give me a detailed summary.")
     print(result)
     print("\n")
-    
+
     # ========================================================================
     # EXAMPLE 2: Create template with domain suggestions
     # ========================================================================
-    
+
     print("=" * 80)
     print("EXAMPLE 2: Create a research paper template")
     print("=" * 80)
-    
+
     result = agent.run(
         """I need to create a template for managing research papers in our academic database.
         
@@ -545,15 +568,15 @@ def main():
     )
     print(result)
     print("\n")
-    
+
     # ========================================================================
     # EXAMPLE 3: Create custom template from scratch
     # ========================================================================
-    
+
     print("=" * 80)
     print("EXAMPLE 3: Create a custom Job Application template")
     print("=" * 80)
-    
+
     result = agent.run(
         """Create a template called 'Job Application' for tracking job applications.
         
@@ -573,15 +596,15 @@ def main():
     )
     print(result)
     print("\n")
-    
+
     # ========================================================================
     # EXAMPLE 4: Query entities from a template
     # ========================================================================
-    
+
     print("=" * 80)
     print("EXAMPLE 4: Query entities")
     print("=" * 80)
-    
+
     result = agent.run(
         """Show me all entities from the 'Blog Post' template.
         I want to see their titles and metadata.
@@ -589,15 +612,15 @@ def main():
     )
     print(result)
     print("\n")
-    
+
     # ========================================================================
     # EXAMPLE 5: Complex multi-step workflow
     # ========================================================================
-    
+
     print("=" * 80)
     print("EXAMPLE 5: Complex workflow - Recipe management system")
     print("=" * 80)
-    
+
     result = agent.run(
         """I'm building a recipe management system for a cooking blog.
         
@@ -617,27 +640,27 @@ def main():
     )
     print(result)
     print("\n")
-    
+
     # ========================================================================
     # EXAMPLE 6: Interactive mode
     # ========================================================================
-    
+
     print("=" * 80)
     print("EXAMPLE 6: Interactive mode")
     print("=" * 80)
     print("You can now chat with the agent interactively!")
     print("Type 'quit' or 'exit' to stop.\n")
-    
+
     while True:
         user_input = input("You: ").strip()
-        
-        if user_input.lower() in ['quit', 'exit', 'q']:
+
+        if user_input.lower() in ["quit", "exit", "q"]:
             print("👋 Goodbye!")
             break
-        
+
         if not user_input:
             continue
-        
+
         try:
             result = agent.run(user_input)
             print(f"\n🤖 Agent: {result}\n")
@@ -649,9 +672,10 @@ def main():
 # ALTERNATIVE: Simpler single-task examples
 # ============================================================================
 
+
 def quick_examples():
     """Quick one-liner examples for common tasks"""
-    
+
     model = LiteLLMModel(model_id="ollama/qwen2.5-coder:14b")
     agent = CodeAgent(
         tools=[
@@ -664,23 +688,24 @@ def quick_examples():
         model=model,
         additional_authorized_imports=["json"],
     )
-    
+
     # Quick task 1: Just analyze
     print("📊 Quick Analysis:")
     print(agent.run("What templates exist?"))
     print("\n")
-    
+
     # Quick task 2: Get suggestions
     print("💡 Get Suggestions:")
     print(agent.run("What properties should a contact management template have?"))
     print("\n")
-    
+
     # Quick task 3: Create simple template
     print("✨ Create Simple Template:")
-    print(agent.run(
-        "Create a 'Book' template with title, author, ISBN, publication date, and description. "
-        "Use color #8B5CF6."
-    ))
+    print(
+        agent.run(
+            "Create a 'Book' template with title, author, ISBN, publication date, and description. " "Use color #8B5CF6."
+        )
+    )
     print("\n")
 
 
@@ -688,15 +713,16 @@ def quick_examples():
 # ADVANCED: Error handling and retries
 # ============================================================================
 
+
 def robust_agent_run(agent, task, max_retries=3):
     """
     Run agent with error handling and retries.
-    
+
     Args:
         agent: The CodeAgent instance
         task: The task string to execute
         max_retries: Maximum number of retry attempts
-    
+
     Returns:
         Result string or error message
     """
@@ -717,7 +743,7 @@ def robust_agent_run(agent, task, max_retries=3):
 
 def advanced_example():
     """Example with error handling"""
-    
+
     model = LiteLLMModel(model_id="ollama/qwen2.5-coder:14b")
     agent = CodeAgent(
         tools=[
@@ -730,13 +756,13 @@ def advanced_example():
         model=model,
         additional_authorized_imports=["json"],
     )
-    
+
     task = """
     Create an 'Event' template for managing conferences and workshops.
     Include event date, location, organizer, capacity, and registration link.
     Use color #DC2626.
     """
-    
+
     result = robust_agent_run(agent, task, max_retries=3)
     print(f"\nFinal Result:\n{result}")
 
@@ -745,9 +771,10 @@ def advanced_example():
 # BATCH PROCESSING: Multiple templates at once
 # ============================================================================
 
+
 def batch_create_templates():
     """Create multiple templates in one session"""
-    
+
     model = LiteLLMModel(model_id="ollama/qwen2.5-coder:14b")
     agent = CodeAgent(
         tools=[
@@ -760,37 +787,25 @@ def batch_create_templates():
         model=model,
         additional_authorized_imports=["json"],
     )
-    
+
     templates_to_create = [
-        {
-            "name": "Event",
-            "description": "conferences and workshops with date, location, organizer",
-            "color": "#DC2626"
-        },
-        {
-            "name": "Product",
-            "description": "e-commerce products with price, description, category",
-            "color": "#059669"
-        },
-        {
-            "name": "Contact",
-            "description": "business contacts with name, email, company, position",
-            "color": "#2563EB"
-        },
+        {"name": "Event", "description": "conferences and workshops with date, location, organizer", "color": "#DC2626"},
+        {"name": "Product", "description": "e-commerce products with price, description, category", "color": "#059669"},
+        {"name": "Contact", "description": "business contacts with name, email, company, position", "color": "#2563EB"},
     ]
-    
+
     print("🚀 Batch creating templates...\n")
-    
+
     for template_spec in templates_to_create:
         print(f"Creating: {template_spec['name']}")
         print("-" * 40)
-        
+
         task = f"""
         Create a '{template_spec['name']}' template for {template_spec['description']}.
         First check if it already exists. If not, get domain suggestions and create it.
         Use color {template_spec['color']}.
         """
-        
+
         try:
             result = agent.run(task)
             print(f"✅ {template_spec['name']} created successfully")
@@ -803,9 +818,10 @@ def batch_create_templates():
 # CONVERSATIONAL: Multi-turn conversation
 # ============================================================================
 
+
 def conversational_example():
     """Example showing multi-turn conversation with context"""
-    
+
     model = LiteLLMModel(model_id="ollama/qwen2.5-coder:14b")
     agent = CodeAgent(
         tools=[
@@ -818,23 +834,23 @@ def conversational_example():
         model=model,
         additional_authorized_imports=["json"],
     )
-    
+
     conversation = [
         "What templates currently exist in the system?",
         "I want to create a template for managing research papers. What properties should it have?",
         "Great! Now create that research paper template with those properties. Use a blue color.",
         "Can you show me the details of the template we just created?",
     ]
-    
+
     print("💬 Conversational Example\n")
-    
+
     for i, message in enumerate(conversation, 1):
         print(f"\n{'='*80}")
         print(f"Turn {i}")
         print(f"{'='*80}")
         print(f"User: {message}")
         print("\nAgent: ", end="")
-        
+
         try:
             result = agent.run(message)
             print(result)
@@ -847,7 +863,8 @@ def conversational_example():
 # ============================================================================
 
 if __name__ == "__main__":
-    print("""
+    print(
+        """
     ╔════════════════════════════════════════════════════════════════╗
     ║           Uwazi Template Management Agent Examples             ║
     ╚════════════════════════════════════════════════════════════════╝
@@ -861,10 +878,11 @@ if __name__ == "__main__":
     5. Conversational multi-turn example
     6. Interactive mode (chat with agent)
     
-    """)
-    
+    """
+    )
+
     choice = input("Enter choice (1-6): ").strip()
-    
+
     if choice == "1":
         main()
     elif choice == "2":
@@ -889,13 +907,13 @@ if __name__ == "__main__":
             model=model,
             additional_authorized_imports=["json"],
         )
-        
+
         print("\n💬 Interactive Mode - Chat with the agent!")
         print("Type 'quit' to exit.\n")
-        
+
         while True:
             user_input = input("You: ").strip()
-            if user_input.lower() in ['quit', 'exit', 'q']:
+            if user_input.lower() in ["quit", "exit", "q"]:
                 print("👋 Goodbye!")
                 break
             if user_input:
