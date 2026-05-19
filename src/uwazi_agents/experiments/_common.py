@@ -1,34 +1,8 @@
-"""Shared bits the agent experiments reuse.
-
-The goal here is to keep the per-framework files small: every framework
-just defines its own tool wrapper and points at `search_uwazi_entities`.
-
-The tool itself supports three call shapes:
-
-1. ``query`` only            -> free-text search
-2. ``template`` / ``language`` (no dates, no query) -> filter-only listing
-3. ``date_from`` / ``date_to``  -> filter search with a ``DateRange`` on
-   the property named ``date`` (this matches the user's reference
-   ``search_with_filters`` query).
-
-Routing is done inside the tool so the agent only has to pick which
-parameters to fill in.
-"""
-
-from __future__ import annotations
-
 import json
 from datetime import date
-
 from uwazi_agents.uwazi_example import search_by_text, search_with_filters
 
-
-# ---------- value normalization ---------------------------------------------
-
 _EMPTY_SENTINELS = {"", "null", "none", "nil", "n/a", "na", "undefined"}
-
-# Small models often say "French" or "español" instead of "fr"/"es".
-# Map the common forms to ISO 639-1 codes so the tool is forgiving.
 _LANGUAGE_ALIASES: dict[str, str] = {
     "en": "en", "english": "en",
     "fr": "fr", "french": "fr", "francais": "fr", "français": "fr",
@@ -36,20 +10,14 @@ _LANGUAGE_ALIASES: dict[str, str] = {
     "es": "es", "spanish": "es", "espanol": "es", "español": "es",
 }
 
-
 def _normalize_optional_str(value: str | None) -> str | None:
-    """Smaller models love to fill ``Optional[str]`` fields with junk like
-    "NULL" or "None" instead of leaving them unset. Treat those as ``None``.
-    """
     if value is None:
         return None
     if isinstance(value, str) and value.strip().lower() in _EMPTY_SENTINELS:
         return None
     return value.strip() if isinstance(value, str) else value
 
-
 def _normalize_language(value: str | None, default: str = "en") -> str:
-    """Map natural names ('French', 'español') to ISO codes; default to ``en``."""
     v = _normalize_optional_str(value)
     if v is None:
         return default
@@ -57,18 +25,10 @@ def _normalize_language(value: str | None, default: str = "en") -> str:
 
 
 def _parse_date(value: str | None) -> date | None:
-    """Parse an ISO ``YYYY-MM-DD`` string; return ``None`` if missing.
-
-    Anything else (``"last month"``, etc.) raises -- we want the model to
-    do the date math itself so we never silently misinterpret it.
-    """
     v = _normalize_optional_str(value)
     if v is None:
         return None
     return date.fromisoformat(v)
-
-
-# ---------- the unified tool ------------------------------------------------
 
 
 def search_uwazi_entities(
@@ -161,8 +121,6 @@ SEARCH_TOOL_DESCRIPTION = (
 )
 
 
-# ---------- prompts ---------------------------------------------------------
-
 CAPABILITY_PROMPT = (
     "In one sentence, describe what an AI agent is and why tool use matters."
 )
@@ -172,16 +130,8 @@ UWAZI_PROMPT = (
     "and the title of the first one."
 )
 
-# The new "extract parameters from prose" prompt. Mirrors the user's
-# reference query in uwazi_example.search().
 UWAZI_FILTER_PROMPT = (
     "I want to see all the documents that have Resolution template in "
     "French from 10 January 2020 to 18 May 2026. How many are there and "
     "what is the title of the first one?"
 )
-
-
-def banner(title: str) -> None:
-    """Pretty section header so the output of each script is skimmable."""
-    bar = "=" * 72
-    print(f"\n{bar}\n  {title}\n{bar}")
