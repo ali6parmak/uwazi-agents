@@ -1,4 +1,5 @@
 import json
+import time
 import ollama
 from typing import Any, Callable
 from configuration import BLUE, CYAN, GREEN, MAGENTA, OLLAMA_BASE_URL, RED, RESET, YELLOW
@@ -100,20 +101,34 @@ def capability_check(model: str) -> None:
     print(f"{GREEN}{response["message"]["content"].strip()}{RESET}")
 
 
+def load_model(model: str) -> None:
+    client = ollama.Client(host=OLLAMA_BASE_URL)
+    client.chat(model=model, messages=[{"role": "user", "content": "Hello"}])
+
+
 if __name__ == "__main__":
     models = ["gemma4:e2b", "nemotron-3-super:cloud"]
     for model in models:
+        load_model(model)
+
+        start_time = time.time()
         print(f"{BLUE}[native-ollama]{RESET} {YELLOW}Checking model:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{CAPABILITY_PROMPT}{RESET}")
         capability_check(model)
+        print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
         print("*"*100)
 
+        start_time = time.time()
         print(f"{BLUE}[native-ollama]{RESET} {YELLOW}Running Uwazi text search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_PROMPT}{RESET}")
         print(f"{GREEN}{run_agent(model, UWAZI_PROMPT)}{RESET}")
+        print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
         print("*"*100)
 
+        start_time = time.time()
         print(f"{BLUE}[native-ollama]{RESET} {YELLOW}Running Uwazi filtered search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_FILTER_PROMPT}{RESET}")
         print(f"{GREEN}{run_agent(model, UWAZI_FILTER_PROMPT)}{RESET}")
+        print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
         print("*"*100)
+        print("#"*100)
