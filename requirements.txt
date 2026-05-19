@@ -1,4 +1,10 @@
-smolagents[litellm]
-pydantic
-black
-git+https://github.com/huridocs/python_uwazi_API@2025.10.17.1
+smolagents[toolkit]==1.25.0
+pydantic==2.13.3
+pydantic-ai==1.96.1
+crewai==1.14.4
+# crewai 1.14.4 pins chromadb~=1.1.0, but chromadb 1.1 ships
+# pydantic.v1.BaseSettings which fails on Python 3.14 (`unable to infer
+# type for attribute "chroma_server_nofile"`). 1.5.9 drops pydantic v1.
+chromadb>=1.5.9
+ollama>=0.4.0
+git+https://github.com/huridocs/python_uwazi_API@2026.5.13.1
