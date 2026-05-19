@@ -4,11 +4,22 @@ from uwazi_agents.uwazi_example import search_by_text, search_with_filters
 
 _EMPTY_SENTINELS = {"", "null", "none", "nil", "n/a", "na", "undefined"}
 _LANGUAGE_ALIASES: dict[str, str] = {
-    "en": "en", "english": "en",
-    "fr": "fr", "french": "fr", "francais": "fr", "français": "fr",
-    "pt": "pt", "portuguese": "pt", "portugues": "pt", "português": "pt",
-    "es": "es", "spanish": "es", "espanol": "es", "español": "es",
+    "en": "en",
+    "english": "en",
+    "fr": "fr",
+    "french": "fr",
+    "francais": "fr",
+    "français": "fr",
+    "pt": "pt",
+    "portuguese": "pt",
+    "portugues": "pt",
+    "português": "pt",
+    "es": "es",
+    "spanish": "es",
+    "espanol": "es",
+    "español": "es",
 }
+
 
 def _normalize_optional_str(value: str | None) -> str | None:
     if value is None:
@@ -16,6 +27,7 @@ def _normalize_optional_str(value: str | None) -> str | None:
     if isinstance(value, str) and value.strip().lower() in _EMPTY_SENTINELS:
         return None
     return value.strip() if isinstance(value, str) else value
+
 
 def _normalize_language(value: str | None, default: str = "en") -> str:
     v = _normalize_optional_str(value)
@@ -96,15 +108,9 @@ def search_uwazi_entities(
     # plus a bunch of metadata). Normalize to a small stable shape so the
     # tool output looks identical across modes and stays cheap on tokens.
     df = df.rename(columns={"sharedId": "shared_id", "_id": "id"})
-    keep = [
-        c
-        for c in ("id", "shared_id", "title", "template", "language", "date")
-        if c in df.columns
-    ]
+    keep = [c for c in ("id", "shared_id", "title", "template", "language", "date") if c in df.columns]
     records = df.head(bounded_limit)[keep].to_dict(orient="records")
-    return json.dumps(
-        {"mode": mode, "count": len(records), "results": records}, default=str
-    )
+    return json.dumps({"mode": mode, "count": len(records), "results": records}, default=str)
 
 
 SEARCH_TOOL_NAME = "search_uwazi_entities"
@@ -121,14 +127,9 @@ SEARCH_TOOL_DESCRIPTION = (
 )
 
 
-CAPABILITY_PROMPT = (
-    "In one sentence, describe what an AI agent is and why tool use matters."
-)
+CAPABILITY_PROMPT = "In one sentence, describe what an AI agent is and why tool use matters."
 
-UWAZI_PROMPT = (
-    "Find Uwazi entities that mention 'plan' and tell me how many you found "
-    "and the title of the first one."
-)
+UWAZI_PROMPT = "Find Uwazi entities that mention 'plan' and tell me how many you found " "and the title of the first one."
 
 UWAZI_FILTER_PROMPT = (
     "I want to see all the documents that have Resolution template in "

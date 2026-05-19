@@ -79,7 +79,6 @@ def run_agent(model: str, prompt: str, max_steps: int = 6) -> str:
         tool_calls = msg.get("tool_calls") or []
         if not tool_calls:
             return msg.get("content", "")
-        
 
         for call in tool_calls:
             fn_name = call["function"]["name"]
@@ -95,9 +94,7 @@ def run_agent(model: str, prompt: str, max_steps: int = 6) -> str:
 
 def capability_check(model: str) -> None:
     client = ollama.Client(host=OLLAMA_BASE_URL)
-    response = client.chat(
-        model=model, messages=[{"role": "user", "content": CAPABILITY_PROMPT}]
-    )
+    response = client.chat(model=model, messages=[{"role": "user", "content": CAPABILITY_PROMPT}])
     print(f"{GREEN}{response["message"]["content"].strip()}{RESET}")
 
 
@@ -116,19 +113,19 @@ if __name__ == "__main__":
         print(f"{MAGENTA}{CAPABILITY_PROMPT}{RESET}")
         capability_check(model)
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
         print(f"{BLUE}[native-ollama]{RESET} {YELLOW}Running Uwazi text search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_PROMPT}{RESET}")
         print(f"{GREEN}{run_agent(model, UWAZI_PROMPT)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
         print(f"{BLUE}[native-ollama]{RESET} {YELLOW}Running Uwazi filtered search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_FILTER_PROMPT}{RESET}")
         print(f"{GREEN}{run_agent(model, UWAZI_FILTER_PROMPT)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
-        print("#"*100)
+        print("*" * 100)
+        print("#" * 100)

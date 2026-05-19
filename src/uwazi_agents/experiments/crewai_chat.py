@@ -23,23 +23,12 @@ from uwazi_agents.experiments._common import (
 )
 
 
-
 class _SearchArgs(BaseModel):
-    query: str | None = Field(
-        default=None, description="Free-text query (skipped when a date range is given)."
-    )
-    template_name: str | None = Field(
-        default=None, description="Uwazi template, e.g. 'Resolution' or 'Document'."
-    )
-    language: str | None = Field(
-        default=None, description="ISO 639-1 language code: 'en', 'fr', 'pt', 'es'."
-    )
-    date_from: str | None = Field(
-        default=None, description="Lower bound, ISO date 'YYYY-MM-DD'."
-    )
-    date_to: str | None = Field(
-        default=None, description="Upper bound, ISO date 'YYYY-MM-DD'."
-    )
+    query: str | None = Field(default=None, description="Free-text query (skipped when a date range is given).")
+    template_name: str | None = Field(default=None, description="Uwazi template, e.g. 'Resolution' or 'Document'.")
+    language: str | None = Field(default=None, description="ISO 639-1 language code: 'en', 'fr', 'pt', 'es'.")
+    date_from: str | None = Field(default=None, description="Lower bound, ISO date 'YYYY-MM-DD'.")
+    date_to: str | None = Field(default=None, description="Upper bound, ISO date 'YYYY-MM-DD'.")
     limit: int = Field(default=10, description="Maximum number of results (1-100).")
 
 
@@ -98,6 +87,7 @@ def crew_run(model_name: str, prompt: str = UWAZI_PROMPT) -> str:
     crew = Crew(agents=[researcher], tasks=[task], process=Process.sequential, verbose=False)
     return crew.kickoff()
 
+
 def load_model(model: str) -> None:
     client = ollama.Client(host=OLLAMA_BASE_URL)
     client.chat(model=model, messages=[{"role": "user", "content": "Hello"}])
@@ -113,19 +103,19 @@ if __name__ == "__main__":
         print(f"{MAGENTA}{CAPABILITY_PROMPT}{RESET}")
         print(f"{GREEN}{capability_check(model)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
         print(f"{BLUE}[crewai]{RESET} {YELLOW}Running Uwazi text search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_PROMPT}{RESET}")
         print(f"{GREEN}{crew_run(model, UWAZI_PROMPT)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
         print(f"{BLUE}[crewai]{RESET} {YELLOW}Running Uwazi filtered search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_FILTER_PROMPT}{RESET}")
         print(f"{GREEN}{crew_run(model, UWAZI_FILTER_PROMPT)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
-        print("#"*100)
+        print("*" * 100)
+        print("#" * 100)

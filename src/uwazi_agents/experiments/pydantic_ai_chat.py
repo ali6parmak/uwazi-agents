@@ -4,13 +4,12 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 
-from configuration import BLUE, CYAN, GREEN, MAGENTA, MODELS, OLLAMA_BASE_URL, RED, RESET, YELLOW
+from configuration import BLUE, CYAN, GREEN, MAGENTA, OLLAMA_BASE_URL, RED, RESET, YELLOW
 from uwazi_agents.experiments._common import (
     CAPABILITY_PROMPT,
     SEARCH_TOOL_DESCRIPTION,
     UWAZI_FILTER_PROMPT,
     UWAZI_PROMPT,
-    banner,
     search_uwazi_entities,
 )
 
@@ -69,6 +68,7 @@ def load_model(model_name: str) -> None:
     client = ollama.Client(host=OLLAMA_BASE_URL)
     client.chat(model=model_name, messages=[{"role": "user", "content": "Hello"}])
 
+
 if __name__ == "__main__":
     models = ["gemma4:e2b", "nemotron-3-super:cloud"]
 
@@ -80,19 +80,19 @@ if __name__ == "__main__":
         print(f"{MAGENTA}{CAPABILITY_PROMPT}{RESET}")
         print(f"{GREEN}{capability_check(model)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
         print(f"{BLUE}[pydantic-ai]{RESET} {YELLOW}Running Uwazi text search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_PROMPT}{RESET}")
         print(f"{GREEN}{uwazi_run(model, UWAZI_PROMPT)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
         print(f"{BLUE}[pydantic-ai]{RESET} {YELLOW}Running Uwazi filtered search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_FILTER_PROMPT}{RESET}")
         print(f"{GREEN}{uwazi_run(model, UWAZI_FILTER_PROMPT)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
-        print("#"*100)
+        print("*" * 100)
+        print("#" * 100)

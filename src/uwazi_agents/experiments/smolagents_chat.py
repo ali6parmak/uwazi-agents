@@ -49,9 +49,7 @@ def build_model(model_name: str) -> LiteLLMModel:
 
 def capability_check(model_name: str) -> None:
     model = build_model(model_name)
-    out = model.generate(
-        [{"role": "user", "content": [{"type": "text", "text": CAPABILITY_PROMPT}]}]
-    )
+    out = model.generate([{"role": "user", "content": [{"type": "text", "text": CAPABILITY_PROMPT}]}])
     print(f"{GREEN}{out.content.strip() if hasattr(out, "content") else str(out).strip()}{RESET}")
 
 
@@ -83,28 +81,36 @@ if __name__ == "__main__":
         print(f"{BLUE}[smolagents]{RESET} {YELLOW}Checking model:{RESET} {RED}{model}{RESET}")
         capability_check(model)
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
-        print(f"{BLUE}[smolagents]{RESET} {YELLOW}Running Uwazi text search with {CYAN}ToolCallingAgent{RESET}:{RESET} {RED}{model}{RESET}")
+        print(
+            f"{BLUE}[smolagents]{RESET} {YELLOW}Running Uwazi text search with {CYAN}ToolCallingAgent{RESET}:{RESET} {RED}{model}{RESET}"
+        )
         tool_calling_run(model, UWAZI_PROMPT)
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
-        print(f"{BLUE}[smolagents]{RESET} {YELLOW}Running Uwazi filtered search with {CYAN}ToolCallingAgent{RESET}:{RESET} {RED}{model}{RESET}")
+        print(
+            f"{BLUE}[smolagents]{RESET} {YELLOW}Running Uwazi filtered search with {CYAN}ToolCallingAgent{RESET}:{RESET} {RED}{model}{RESET}"
+        )
         tool_calling_run(model, UWAZI_FILTER_PROMPT)
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
-        print(f"{BLUE}[smolagents]{RESET} {YELLOW}Running Uwazi text search with {CYAN}CodeAgent{RESET}:{RESET} {RED}{model}{RESET}")
+        print(
+            f"{BLUE}[smolagents]{RESET} {YELLOW}Running Uwazi text search with {CYAN}CodeAgent{RESET}:{RESET} {RED}{model}{RESET}"
+        )
         code_agent_run(model, UWAZI_PROMPT)
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
-        print(f"{BLUE}[smolagents]{RESET} {YELLOW}Running Uwazi filtered search with {CYAN}CodeAgent{RESET}:{RESET} {RED}{model}{RESET}")
+        print(
+            f"{BLUE}[smolagents]{RESET} {YELLOW}Running Uwazi filtered search with {CYAN}CodeAgent{RESET}:{RESET} {RED}{model}{RESET}"
+        )
         code_agent_run(model, UWAZI_FILTER_PROMPT)
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)

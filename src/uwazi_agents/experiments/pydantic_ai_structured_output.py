@@ -1,4 +1,3 @@
-
 import time
 import ollama
 from pydantic import BaseModel, ConfigDict
@@ -24,6 +23,7 @@ class UwaziEntity(BaseModel):
     template: str | None = None
     language: str | None = None
     date: str | None = None
+
 
 class SearchResult(BaseModel):
     mode: str
@@ -69,14 +69,17 @@ def build_agent(model_name: str) -> Agent[None, SearchResult]:
 
     return agent
 
+
 def uwazi_run(model_name: str, prompt: str = UWAZI_PROMPT) -> SearchResult:
     agent = build_agent(model_name)
     result = agent.run_sync(prompt)
     return result.output
 
+
 def load_model(model_name: str) -> None:
     client = ollama.Client(host=OLLAMA_BASE_URL)
     client.chat(model=model_name, messages=[{"role": "user", "content": "Hello"}])
+
 
 if __name__ == "__main__":
     models = ["nemotron-3-super:cloud"]
@@ -89,12 +92,12 @@ if __name__ == "__main__":
         print(f"{MAGENTA}{UWAZI_PROMPT}{RESET}")
         print(f"{GREEN}{uwazi_run(model, UWAZI_PROMPT)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
+        print("*" * 100)
 
         start_time = time.time()
         print(f"{BLUE}[pydantic-ai]{RESET} {YELLOW}Running Uwazi filtered search:{RESET} {RED}{model}{RESET}")
         print(f"{MAGENTA}{UWAZI_FILTER_PROMPT}{RESET}")
         print(f"{GREEN}{uwazi_run(model, UWAZI_FILTER_PROMPT)}{RESET}")
         print(f"{CYAN}Time taken: {time.time() - start_time:.2f} seconds{RESET}")
-        print("*"*100)
-        print("#"*100)
+        print("*" * 100)
+        print("#" * 100)
