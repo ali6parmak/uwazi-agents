@@ -1,7 +1,7 @@
 import json
 import ollama
 from typing import Any, Callable
-from configuration import BLUE, GREEN, OLLAMA_BASE_URL, RED, RESET, YELLOW
+from configuration import BLUE, CYAN, GREEN, MAGENTA, OLLAMA_BASE_URL, RED, RESET, YELLOW
 from uwazi_agents.experiments._common import (
     CAPABILITY_PROMPT,
     SEARCH_TOOL_DESCRIPTION,
@@ -104,13 +104,16 @@ if __name__ == "__main__":
     models = ["gemma4:e2b", "nemotron-3-super:cloud"]
     for model in models:
         print(f"{BLUE}[native-ollama]{RESET} {YELLOW}Checking model:{RESET} {RED}{model}{RESET}")
+        print(f"{MAGENTA}{CAPABILITY_PROMPT}{RESET}")
         capability_check(model)
         print("*"*100)
 
         print(f"{BLUE}[native-ollama]{RESET} {YELLOW}Running Uwazi text search:{RESET} {RED}{model}{RESET}")
+        print(f"{MAGENTA}{UWAZI_PROMPT}{RESET}")
         print(f"{GREEN}{run_agent(model, UWAZI_PROMPT)}{RESET}")
         print("*"*100)
 
         print(f"{BLUE}[native-ollama]{RESET} {YELLOW}Running Uwazi filtered search:{RESET} {RED}{model}{RESET}")
+        print(f"{MAGENTA}{UWAZI_FILTER_PROMPT}{RESET}")
         print(f"{GREEN}{run_agent(model, UWAZI_FILTER_PROMPT)}{RESET}")
         print("*"*100)
