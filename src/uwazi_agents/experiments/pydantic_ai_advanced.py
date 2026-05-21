@@ -64,6 +64,9 @@ def build_agent(model_name: str) -> Agent[None, str]:
             name: Optional template name. If given, only that template
                   is returned (or an empty list if it doesn't exist).
         """
+
+        params = f"{YELLOW}{name=}{RESET}"
+        print(f"{CYAN}[list_templates]{RESET} tool called with the parameters: {params}")
         return json.dumps(list_templates_summary(name=name), default=str)
 
     @agent.tool(name="fetch_entities")
@@ -80,6 +83,8 @@ def build_agent(model_name: str) -> Agent[None, str]:
             language: ISO 639-1 language code (default 'en').
             limit: Max number of rows (capped to 10000).
         """
+        params = f"{YELLOW}{template_name=} {language=} {limit=}{RESET}"
+        print(f"{CYAN}[fetch_entities]{RESET} tool called with the parameters: {params}")
         capped = max(1, min(int(limit), 10000))
         df = fetch_entities_dataframe(
             template_name=template_name, language=language, limit=capped
@@ -126,6 +131,8 @@ def build_agent(model_name: str) -> Agent[None, str]:
             language: ISO 639-1 language code for the underlying fetch.
             fetch_limit: Max entities to pull into ``df`` (capped to 10000).
         """
+        params = f"{YELLOW}\ncode:\n-------\n{code}\n-------\n {template_name=}, {language=}, {fetch_limit=}{RESET}"
+        print(f"{CYAN}[_python_exec]{RESET} tool called with the parameters: {params}")
         capped = max(1, min(int(fetch_limit), 10000))
         try:
             out = run_python_on_entities(
@@ -140,11 +147,6 @@ def build_agent(model_name: str) -> Agent[None, str]:
 
     return agent
 
-
-# Demo prompts covering each of the three capabilities you wanted to test.
-# These are intentionally a bit open-ended: the model has to *compose*
-# list_templates + python_exec to answer the volume questions, since we
-# deliberately removed the dedicated counting tool.
 PROMPTS: dict[str, str] = {
     "templates_list": (
         "List the templates in the database. For each, give me just the "
