@@ -1,24 +1,8 @@
-"""Advanced pydantic-ai experiment.
-
-Exercises three capabilities on top of the basic chat agent:
-
-1. Listing Uwazi templates (all or one by name) so the model can decide
-   which template to query.
-2. Scale: ``fetch_entities`` paginates under the hood so the model can
-   pull large slices when it needs raw rows.
-3. Custom analytics: ``python_exec`` lets the model write small pandas
-   snippets against a server-side DataFrame and only get the (small)
-   result back in its context. The model is expected to *compose* this
-   with ``list_templates`` for things like "which template has the most
-   documents" instead of relying on dedicated count tools.
-"""
-
-from __future__ import annotations
-
 import json
 import time
-
 import ollama
+import pandas as pd
+from dataclasses import dataclass, field
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
@@ -36,10 +20,10 @@ SYSTEM_PROMPT = (
     "You can call these tools:\n"
     "  - list_templates(name=None): list templates (all, or one by name) "
     "with their properties. Cheap.\n"
-    "  - fetch_entities(template_name=None, language='en', limit=200): "
+    "  - fetch_entities(template_name=None, language='en', limit=10000): "
     "returns compact entity rows. Expensive when limit is large.\n"
     "  - python_exec(code, template_name=None, language='en', "
-    "fetch_limit=5000): loads up to fetch_limit entities into a pandas "
+    "fetch_limit=10000): loads up to fetch_limit entities into a pandas "
     "DataFrame named 'df' and runs your Python. You MUST assign the "
     "final answer to a variable called 'result'. Use this for filtering, "
     "aggregating, or counting over result sets.\n"
@@ -51,7 +35,7 @@ SYSTEM_PROMPT = (
     "those template IDs back using list_templates.\n"
     "- The python_exec response includes a 'truncated' flag and "
     "'fetched_rows' so you can tell when fetch_limit was the cap; raise "
-    "fetch_limit (max 20000) only if the question really needs more rows.\n"
+    "fetch_limit (max 10000) only if the question really needs more rows.\n"
     "- Only ask for as much data (limit/fetch_limit) as the question "
     "actually needs.\n"
     "- When you compute dates in prose, convert to ISO 'YYYY-MM-DD' "
@@ -59,12 +43,18 @@ SYSTEM_PROMPT = (
 )
 
 
+@dataclass
+class UwaziDeps:
+    last_df: pd.DataFrame = field(default_factory=pd.DataFrame)
+    last_query: dict = field(default_factory=dict)
+
+
 def build_agent(model_name: str) -> Agent[None, str]:
     model = OpenAIChatModel(
         model_name=model_name,
         provider=OllamaProvider(base_url=f"{OLLAMA_BASE_URL}/v1"),
     )
-    agent: Agent[None, str] = Agent(model=model, system_prompt=SYSTEM_PROMPT)
+    agent: Agent[UwaziDeps, str] = Agent(model=model, system_prompt=SYSTEM_PROMPT)
 
     @agent.tool(name="list_templates")
     def _list_templates(ctx: RunContext[None], name: str | None = None) -> str:
@@ -78,19 +68,19 @@ def build_agent(model_name: str) -> Agent[None, str]:
 
     @agent.tool(name="fetch_entities")
     def _fetch(
-        ctx: RunContext[None],
+        ctx: RunContext[UwaziDeps],
         template_name: str | None = None,
         language: str = "en",
-        limit: int = 200,
+        limit: int = 10000,
     ) -> str:
         """Fetch compact entity rows (id, sharedId, title, template, language, creationDate).
 
         Args:
             template_name: Optional Uwazi template to restrict to.
             language: ISO 639-1 language code (default 'en').
-            limit: Max number of rows (capped to 1000).
+            limit: Max number of rows (capped to 10000).
         """
-        capped = max(1, min(int(limit), 1000))
+        capped = max(1, min(int(limit), 10000))
         df = fetch_entities_dataframe(
             template_name=template_name, language=language, limit=capped
         )
@@ -99,6 +89,14 @@ def build_agent(model_name: str) -> Agent[None, str]:
             for c in ("_id", "sharedId", "title", "template", "language", "creationDate")
             if c in df.columns
         ]
+
+        ctx.deps.last_df = df
+        ctx.deps.last_query = {
+            "template_name": template_name,
+            "language": language,
+            "limit": limit,
+        }
+
         return json.dumps(
             {
                 "count": int(len(df)),
@@ -114,7 +112,7 @@ def build_agent(model_name: str) -> Agent[None, str]:
         code: str,
         template_name: str | None = None,
         language: str = "en",
-        fetch_limit: int = 5000,
+        fetch_limit: int = 10000,
     ) -> str:
         """Run analyst Python over a DataFrame ``df`` of fetched entities.
 
@@ -126,9 +124,9 @@ def build_agent(model_name: str) -> Agent[None, str]:
             code: The Python source to execute. Multiple lines are fine.
             template_name: Optional template name to scope ``df``.
             language: ISO 639-1 language code for the underlying fetch.
-            fetch_limit: Max entities to pull into ``df`` (capped to 20000).
+            fetch_limit: Max entities to pull into ``df`` (capped to 10000).
         """
-        capped = max(1, min(int(fetch_limit), 20000))
+        capped = max(1, min(int(fetch_limit), 10000))
         try:
             out = run_python_on_entities(
                 code=code,
@@ -162,8 +160,7 @@ PROMPTS: dict[str, str] = {
         "their counts (use the template names, not the IDs)."
     ),
     "custom_starts_with_c": (
-        "Give me up to 10 entity titles that start with the letter 'C' "
-        "(case-insensitive)."
+        "How many entities have a title that starts with the letter 'C' (case-insensitive)."
     ),
     "custom_first_letter": (
         "What is the most common first letter of entity titles across "
@@ -175,7 +172,14 @@ PROMPTS: dict[str, str] = {
 
 def uwazi_run(model_name: str, prompt: str) -> str:
     agent = build_agent(model_name)
-    result = agent.run_sync(prompt)
+    deps = UwaziDeps()
+    result = agent.run_sync(prompt, deps=deps)
+
+    if not deps.last_df.empty:
+        print(f"\n--- DataFrame ({len(deps.last_df)} rows) ---")
+        print(deps.last_df.head(20))
+        print(f"\n--- Last query: {deps.last_query} ---")
+
     return result.output.strip()
 
 
@@ -202,7 +206,7 @@ def _run_prompt(model: str, label: str, prompt: str) -> None:
 
 
 if __name__ == "__main__":
-    models = ["nemotron-3-super:cloud"]
+    models = ["granite4.1:30b"]
 
     for model in models:
         load_model(model)
