@@ -49,15 +49,15 @@ class UwaziDeps:
     last_query: dict = field(default_factory=dict)
 
 
-def build_agent(model_name: str) -> Agent[None, str]:
+def build_agent(model_name: str) -> Agent[UwaziDeps, str]:
     model = OpenAIChatModel(
         model_name=model_name,
         provider=OllamaProvider(base_url=f"{OLLAMA_BASE_URL}/v1"),
     )
-    agent: Agent[UwaziDeps, str] = Agent(model=model, system_prompt=SYSTEM_PROMPT)
+    agent: Agent[UwaziDeps, str] = Agent(model=model, deps_type=UwaziDeps, system_prompt=SYSTEM_PROMPT)
 
     @agent.tool(name="list_templates")
-    def _list_templates(ctx: RunContext[None], name: str | None = None) -> str:
+    def _list_templates(ctx: RunContext[UwaziDeps], name: str | None = None) -> str:
         """List Uwazi templates with their properties.
 
         Args:
@@ -106,14 +106,14 @@ def build_agent(model_name: str) -> Agent[None, str]:
             {
                 "count": int(len(df)),
                 "limit_used": capped,
-                "results": df[keep].to_dict(orient="records") if keep else [],
+                "results": df.loc[:, keep].to_dict(orient="records") if keep else [],
             },
             default=str,
         )
 
     @agent.tool(name="python_exec")
     def _python(
-        ctx: RunContext[None],
+        ctx: RunContext[UwaziDeps],
         code: str,
         template_name: str | None = None,
         language: str = "en",
@@ -186,7 +186,6 @@ def uwazi_run(model_name: str, prompt: str) -> str:
 
 
 def load_model(model_name: str) -> None:
-    """Warm the Ollama model so the first real call is fast."""
     ollama.Client(host=OLLAMA_BASE_URL).chat(
         model=model_name, messages=[{"role": "user", "content": "Hello"}]
     )
