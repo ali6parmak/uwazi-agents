@@ -85,8 +85,7 @@ def seed(
             rate = done / elapsed if elapsed else 0.0
             remaining = (count - done) / rate if rate else 0.0
             print(
-                f"  uploaded {done}/{count} "
-                f"({rate:.1f}/s, ~{remaining:.0f}s remaining)",
+                f"  uploaded {done}/{count} " f"({rate:.1f}/s, ~{remaining:.0f}s remaining)",
                 flush=True,
             )
     elapsed = time.time() - start_time

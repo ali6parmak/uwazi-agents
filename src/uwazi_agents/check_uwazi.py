@@ -32,6 +32,7 @@ def check_uwazi():
     print(len(entities))
     print(entities[0])
 
+
 def check_title_letters():
     client = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
     template_names: list[str] = [t.name for t in client.templates.get()]
@@ -72,10 +73,12 @@ def check_thesauris():
             linked = thesauri_by_id.get(prop.content, prop.content)
             print(f"  {template.name}.{prop.name} → {linked}")
 
+
 def add_thesauris(template_name: str, property_name: str, values: list[str]):
     client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
     df: pd.DataFrame = pd.DataFrame({property_name: values})
-    client.thesauri_from_df.execute(df=df, template_name=template_name, language='en')
+    client.thesauri_from_df.execute(df=df, template_name=template_name, language="en")
+
 
 def create_entity(title: str, template_name: str, language: str = "en"):
     client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
@@ -87,9 +90,10 @@ def create_entity(title: str, template_name: str, language: str = "en"):
     entity_id: str = client.entities.upload(entity=entity, language=language)
     print(entity_id)
 
+
 def delete_entities(template_name: None | str = None):
     client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
-    entities = client.entities.get(start_from=0, batch_size = 9999, template_name=template_name)
+    entities = client.entities.get(start_from=0, batch_size=9999, template_name=template_name)
     shared_ids_to_delete: list[str] = []
     for e in entities:
         template_id: str | None = e.template
@@ -100,7 +104,7 @@ def delete_entities(template_name: None | str = None):
             continue
         print(f"{template_id=}, {template.name=}, {e.title=}")
         print(e)
-        print("*"*25)
+        print("*" * 25)
         shared_id: str | None = e.shared_id
         if shared_id:
             shared_ids_to_delete.append(shared_id)

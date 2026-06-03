@@ -58,13 +58,9 @@ def list_templates_summary(name: str | None = None) -> list[dict[str, Any]]:
             "name": t.name,
             "color": t.color,
             "properties": [
-                {"name": p.name, "label": p.label, "type": str(p.type), "filter": p.filter}
-                for p in t.properties
+                {"name": p.name, "label": p.label, "type": str(p.type), "filter": p.filter} for p in t.properties
             ],
-            "common_properties": [
-                {"name": p.name, "label": p.label, "type": str(p.type)}
-                for p in t.common_properties
-            ],
+            "common_properties": [{"name": p.name, "label": p.label, "type": str(p.type)} for p in t.common_properties],
         }
         for t in templates
     ]
@@ -250,10 +246,7 @@ def create_entity(
     c = client()
     template = c.templates.get_by_name(template_name)
     if template is None:
-        raise ValueError(
-            f"No template named {template_name!r}. "
-            "Call list_templates to see the valid names."
-        )
+        raise ValueError(f"No template named {template_name!r}. " "Call list_templates to see the valid names.")
 
     entity = Entity(
         title=title,
@@ -289,10 +282,7 @@ def delete_entities(
         ``{deleted_count, titles}`` describing what was removed.
     """
     if not template_name and not title:
-        raise ValueError(
-            "Provide template_name and/or title; refusing to delete every "
-            "entity in the database."
-        )
+        raise ValueError("Provide template_name and/or title; refusing to delete every " "entity in the database.")
 
     c = client()
     entities = c.entities.get(
@@ -374,24 +364,13 @@ def add_thesauri_values(
         labels that were genuinely new).
     """
     match = next(
-        (
-            r
-            for r in _thesauri_rows(language)
-            if r.get("name") == thesauri_name and r.get("type") != "template"
-        ),
+        (r for r in _thesauri_rows(language) if r.get("name") == thesauri_name and r.get("type") != "template"),
         None,
     )
     if match is None:
-        raise ValueError(
-            f"No thesaurus named {thesauri_name!r}. "
-            "Call list_thesauri to see the valid names."
-        )
+        raise ValueError(f"No thesaurus named {thesauri_name!r}. " "Call list_thesauri to see the valid names.")
 
-    existing = {
-        v["label"]: v["id"]
-        for v in match.get("values", [])
-        if "label" in v and "id" in v
-    }
+    existing = {v["label"]: v["id"] for v in match.get("values", []) if "label" in v and "id" in v}
     new_values = {v: v for v in values if v not in existing}
     if not new_values:
         return {"thesaurus": thesauri_name, "added": [], "total_values": len(existing)}

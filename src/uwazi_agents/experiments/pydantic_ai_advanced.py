@@ -21,7 +21,6 @@ from uwazi_agents.uwazi_tools import (
     run_python_on_entities,
 )
 
-
 SYSTEM_PROMPT = (
     "You are an assistant managing a Uwazi document database. You have "
     "both read (analytics) and write (admin) tools.\n"
@@ -72,6 +71,7 @@ SYSTEM_PROMPT = (
     "strings before calling tools."
 )
 
+
 def _colorize_code_block(code: str) -> str:
     lines: list[str] = code.strip().split(sep="\n")
     width: int = max(len(line) for line in lines)
@@ -83,6 +83,7 @@ def _colorize_code_block(code: str) -> str:
 
     colored_str += DARK_ORANGE_BG + " " * (width + 4) + RESET + "\n"
     return colored_str
+
 
 @dataclass
 class UwaziDeps:
@@ -127,14 +128,8 @@ def build_agent(model_name: str) -> Agent[UwaziDeps, str]:
         params = f"{YELLOW}{template_name=} {language=} {limit=}{RESET}"
         print(f"{CYAN}[fetch_entities]{RESET} tool called with the parameters: {params}")
         capped = max(1, min(int(limit), 10000))
-        df = fetch_entities_dataframe(
-            template_name=template_name, language=language, limit=capped
-        )
-        keep = [
-            c
-            for c in ("_id", "sharedId", "title", "template", "language", "creationDate")
-            if c in df.columns
-        ]
+        df = fetch_entities_dataframe(template_name=template_name, language=language, limit=capped)
+        keep = [c for c in ("_id", "sharedId", "title", "template", "language", "creationDate") if c in df.columns]
 
         ctx.deps.last_df = df
         ctx.deps.last_query = {
@@ -245,9 +240,7 @@ def build_agent(model_name: str) -> Agent[UwaziDeps, str]:
         params = f"{YELLOW}{template_name=} {title=} {language=}{RESET}"
         print(f"{CYAN}[delete_entities]{RESET} tool called with the parameters: {params}")
         try:
-            return json.dumps(
-                delete_entities(template_name=template_name, title=title, language=language), default=str
-            )
+            return json.dumps(delete_entities(template_name=template_name, title=title, language=language), default=str)
         except Exception as exc:
             return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
 
@@ -320,33 +313,24 @@ def build_agent(model_name: str) -> Agent[UwaziDeps, str]:
 
     return agent
 
+
 PROMPTS: dict[str, str] = {
     "templates_list": (
-        "List the templates in the database. For each, give me just the "
-        "name and the number of (non-common) properties."
+        "List the templates in the database. For each, give me just the " "name and the number of (non-common) properties."
     ),
-    "templates_lookup": (
-        "Does a template called 'Resolution' exist? If so, what are its "
-        "property names and types?"
-    ),
+    "templates_lookup": ("Does a template called 'Resolution' exist? If so, what are its " "property names and types?"),
     "scale_total": "How many entities are stored in total across all templates?",
     "scale_top_template": (
         "Which template has the most documents? Give me the top 3 with "
         "their counts (use the template names, not the IDs)."
     ),
-    "custom_starts_with_c": (
-        "How many entities have a title that starts with the letter 'C' (case-insensitive)."
-    ),
+    "custom_starts_with_c": ("How many entities have a title that starts with the letter 'C' (case-insensitive)."),
     "custom_first_letter": (
         "What is the most common first letter of entity titles across "
         "the whole database, ignoring case? Return the top 5 letters "
         "with their counts."
     ),
-    # --- Write / admin capabilities (these MODIFY the database) ---
-    "thesauri_list": (
-        "List the thesauri in the database and, for each, how many values "
-        "it currently has."
-    ),
+    "thesauri_list": ("List the thesauri in the database and, for each, how many values " "it currently has."),
     "thesauri_add_values": (
         "Add the values 'Malawi', 'Zambia' and 'Mozambique' to the "
         "'Country' thesaurus. Skip any that already exist and tell me which "
@@ -358,16 +342,13 @@ PROMPTS: dict[str, str] = {
         "ones were actually added."
     ),
     "entity_create": (
-        "Create a new entity titled 'Test Entity' under the 'BarEntity' "
-        "template, then confirm its sharedId."
+        "Create a new entity titled 'Test Entity' under the 'BarEntity' " "template, then confirm its sharedId."
     ),
     "multiple_entity_create": (
-        "Create 5 new entities titled 'Test Entity' under the 'BarEntity' "
-        "template, then confirm its sharedId."
+        "Create 5 new entities titled 'Test Entity' under the 'BarEntity' " "template, then confirm its sharedId."
     ),
     "entity_delete": (
-        "Delete every entity in the 'BarEntity' template whose title is "
-        "'Test Entity', and report how many were removed."
+        "Delete every entity in the 'BarEntity' template whose title is " "'Test Entity', and report how many were removed."
     ),
     "pages_list": "List the pages in the database with their titles and urls.",
     "page_create_markdown": (
@@ -398,17 +379,12 @@ def uwazi_run(model_name: str, prompt: str) -> str:
 
 
 def load_model(model_name: str) -> None:
-    ollama.Client(host=OLLAMA_BASE_URL).chat(
-        model=model_name, messages=[{"role": "user", "content": "Hello"}]
-    )
+    ollama.Client(host=OLLAMA_BASE_URL).chat(model=model_name, messages=[{"role": "user", "content": "Hello"}])
 
 
 def _run_prompt(model: str, label: str, prompt: str) -> None:
     start = time.time()
-    print(
-        f"{BLUE}[pydantic-ai/advanced]{RESET} {YELLOW}{label}{RESET} "
-        f"on {RED}{model}{RESET}"
-    )
+    print(f"{BLUE}[pydantic-ai/advanced]{RESET} {YELLOW}{label}{RESET} " f"on {RED}{model}{RESET}")
     print(f"{MAGENTA}{prompt}{RESET}")
     try:
         print(f"{GREEN}{uwazi_run(model, prompt)}{RESET}")
@@ -420,7 +396,7 @@ def _run_prompt(model: str, label: str, prompt: str) -> None:
 
 if __name__ == "__main__":
     models: list[str] = ["granite4.1:30b"]
-    
+
     for model in models:
         load_model(model_name=model)
         for label, prompt in PROMPTS.items():
