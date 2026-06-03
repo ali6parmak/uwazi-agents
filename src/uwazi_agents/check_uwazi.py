@@ -4,9 +4,10 @@ from typing import Any
 
 from uwazi_api.client import UwaziClient
 from uwazi_api.domain.entity import Entity
+from uwazi_api.domain.template import Template
 from uwazi_api.domain.thesauri import Thesauri
 
-from configuration import UWAZI_PASSWORD, UWAZI_URL, UWAZI_USER 
+from configuration import UWAZI_PASSWORD, UWAZI_URL, UWAZI_USER
 
 
 def _fetch_thesauri_rows(client: UwaziClient, language: str = "en") -> list[dict[str, Any]]:
@@ -41,11 +42,6 @@ def check_title_letters():
     first_letter_counts = Counter([e.title[0].lower() for e in entities])
     print(first_letter_counts.most_common(5))
 
-def create_entity(title: str, template_name: str, language: str = "en"):
-    client = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
-    template = client.templates.get_by_name(template_name)
-    entity = client.entities.upload(entity=Entity(title=title, template=template.id, language=language), language=language)
-    print(entity)
 
 def check_thesauris():
     client = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
@@ -75,8 +71,42 @@ def check_thesauris():
             linked = thesauri_by_id.get(prop.content, prop.content)
             print(f"  {template.name}.{prop.name} → {linked}")
 
+
+def create_entity(title: str, template_name: str, language: str = "en"):
+    client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
+    template: Template | None = client.templates.get_by_name(template_name)
+    if not template:
+        print(f"No template found named: {template_name}")
+        return
+    entity: Entity = Entity(title=title, template=template.id, language=language)
+    entity_id: str = client.entities.upload(entity=entity, language=language)
+    print(entity_id)
+
+def delete_entities(template_name: None | str = None):
+    client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
+    entities = client.entities.get(start_from=0, batch_size = 9999, template_name=template_name)
+    shared_ids_to_delete: list[str] = []
+    for e in entities:
+        template_id: str | None = e.template
+        if template_id is None:
+            continue
+        template: Template | None = client.templates.get_by_id(template_id)
+        if template is None:
+            continue
+        print(f"{template_id=}, {template.name=}, {e.title=}")
+        print(e)
+        print("*"*25)
+        shared_id: str | None = e.shared_id
+        if shared_id:
+            shared_ids_to_delete.append(shared_id)
+    print(len(shared_ids_to_delete))
+
+
+
 if __name__ == "__main__":
     # check_uwazi()
     # check_title_letters()
     # create_entity(title="Test", template_name="BarEntity", language="en")
-    check_thesauris()
+    # create_entity("C Test", "BarEntity", "en")
+    delete_entities(template_name="BarEntity")
+    # check_thesauris()
