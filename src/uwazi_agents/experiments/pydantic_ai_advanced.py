@@ -7,17 +7,26 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 
-from configuration import BLUE, CYAN, GREEN, MAGENTA, OLLAMA_BASE_URL, RED, RESET, YELLOW
+from configuration import BLUE, CYAN, DARK_GRAY_BG, DARK_ORANGE_BG, GREEN, MAGENTA, OLLAMA_BASE_URL, RED, RESET, YELLOW
 from uwazi_agents.uwazi_tools import (
+    add_thesauri_values,
+    create_entity,
+    create_page,
+    delete_entities,
+    delete_pages_by_title,
     fetch_entities_dataframe,
+    list_pages,
     list_templates_summary,
+    list_thesauri,
     run_python_on_entities,
 )
 
 
 SYSTEM_PROMPT = (
-    "You are an analyst with read-only access to a Uwazi document database. "
-    "You can call these tools:\n"
+    "You are an assistant managing a Uwazi document database. You have "
+    "both read (analytics) and write (admin) tools.\n"
+    "\n"
+    "Read / analytics tools:\n"
     "  - list_templates(name=None): list templates (all, or one by name) "
     "with their properties. Cheap.\n"
     "  - fetch_entities(template_name=None, language='en', limit=10000): "
@@ -27,12 +36,33 @@ SYSTEM_PROMPT = (
     "DataFrame named 'df' and runs your Python. You MUST assign the "
     "final answer to a variable called 'result'. Use this for filtering, "
     "aggregating, or counting over result sets.\n"
+    "  - list_thesauri(language='en'): list thesauri and their values.\n"
+    "  - list_pages(language='en'): list pages with their titles and urls.\n"
+    "\n"
+    "Write / admin tools (these MODIFY the database, use deliberately):\n"
+    "  - create_entity(title, template_name, language='en'): create one "
+    "entity under an existing template.\n"
+    "  - delete_entities(template_name=None, title=None, language='en'): "
+    "delete entities by template and/or exact title. At least one filter "
+    "is required.\n"
+    "  - add_thesauri_values(thesauri_name, values, language='en'): append "
+    "new labels to an existing thesaurus (existing values are kept).\n"
+    "  - create_page(title, markdown=None, javascript=None, language='en'): "
+    "create a page. Pass 'markdown' for a markdown/HTML body and/or "
+    "'javascript' for a page with a script.\n"
+    "  - delete_pages_by_title(title, language='en'): delete every page "
+    "with that exact title.\n"
     "\n"
     "Guidelines:\n"
     "- Compose tools rather than expecting a tool per question. For "
     "example, to count per template, pass template_name=None to "
     "python_exec and group `df` by the 'template' column, then map "
     "those template IDs back using list_templates.\n"
+    "- Before creating an entity or adding thesaurus values, confirm the "
+    "target template/thesaurus exists with list_templates / list_thesauri.\n"
+    "- Destructive tools (delete_entities, delete_pages_by_title) are "
+    "irreversible. Only call them when the user clearly asked to delete, "
+    "and always pass a specific filter.\n"
     "- The python_exec response includes a 'truncated' flag and "
     "'fetched_rows' so you can tell when fetch_limit was the cap; raise "
     "fetch_limit (max 10000) only if the question really needs more rows.\n"
@@ -42,6 +72,17 @@ SYSTEM_PROMPT = (
     "strings before calling tools."
 )
 
+def _colorize_code_block(code: str) -> str:
+    lines: list[str] = code.strip().split(sep="\n")
+    width: int = max(len(line) for line in lines)
+    colored_str: str = DARK_ORANGE_BG + " " * (width + 4) + RESET + "\n"
+
+    for line in lines:
+        padded: str = line.ljust(width)
+        colored_str += DARK_ORANGE_BG + f"  {padded}  " + RESET + "\n"
+
+    colored_str += DARK_ORANGE_BG + " " * (width + 4) + RESET + "\n"
+    return colored_str
 
 @dataclass
 class UwaziDeps:
@@ -131,7 +172,8 @@ def build_agent(model_name: str) -> Agent[UwaziDeps, str]:
             language: ISO 639-1 language code for the underlying fetch.
             fetch_limit: Max entities to pull into ``df`` (capped to 10000).
         """
-        params = f"{YELLOW}\ncode:\n-------\n{code}\n-------\n {template_name=}, {language=}, {fetch_limit=}{RESET}"
+        params: str = f"{YELLOW}\ncode:{RESET}\n{_colorize_code_block(code)}\n"
+        params += f"{YELLOW}{template_name=}, {language=}, {fetch_limit=}{RESET}"
         print(f"{CYAN}[_python_exec]{RESET} tool called with the parameters: {params}")
         capped = max(1, min(int(fetch_limit), 10000))
         try:
@@ -142,6 +184,137 @@ def build_agent(model_name: str) -> Agent[UwaziDeps, str]:
                 fetch_limit=capped,
             )
             return json.dumps(out, default=str)
+        except Exception as exc:
+            return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
+
+    @agent.tool(name="list_thesauri")
+    def _list_thesauri(ctx: RunContext[UwaziDeps], language: str = "en") -> str:
+        """List the Uwazi thesauri (controlled vocabularies) and their values.
+
+        Args:
+            language: ISO 639-1 language code (default 'en').
+        """
+        print(f"{CYAN}[list_thesauri]{RESET} tool called with the parameters: {YELLOW}{language=}{RESET}")
+        return json.dumps(list_thesauri(language=language), default=str)
+
+    @agent.tool(name="list_pages")
+    def _list_pages(ctx: RunContext[UwaziDeps], language: str = "en") -> str:
+        """List Uwazi pages (title, url, and whether they have markdown/javascript).
+
+        Args:
+            language: ISO 639-1 language code (default 'en').
+        """
+        print(f"{CYAN}[list_pages]{RESET} tool called with the parameters: {YELLOW}{language=}{RESET}")
+        return json.dumps(list_pages(language=language), default=str)
+
+    @agent.tool(name="create_entity")
+    def _create_entity(
+        ctx: RunContext[UwaziDeps],
+        title: str,
+        template_name: str,
+        language: str = "en",
+    ) -> str:
+        """Create a single entity under an existing template.
+
+        Args:
+            title: The entity's title (its primary name).
+            template_name: Name of an existing template.
+            language: ISO 639-1 language code (default 'en').
+        """
+        params = f"{YELLOW}{title=} {template_name=} {language=}{RESET}"
+        print(f"{CYAN}[create_entity]{RESET} tool called with the parameters: {params}")
+        try:
+            return json.dumps(create_entity(title=title, template_name=template_name, language=language), default=str)
+        except Exception as exc:
+            return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
+
+    @agent.tool(name="delete_entities")
+    def _delete_entities(
+        ctx: RunContext[UwaziDeps],
+        template_name: str | None = None,
+        title: str | None = None,
+        language: str = "en",
+    ) -> str:
+        """Delete entities by template and/or exact title (at least one required).
+
+        Args:
+            template_name: Restrict deletion to this template.
+            title: Restrict deletion to entities with this exact title.
+            language: ISO 639-1 language code (default 'en').
+        """
+        params = f"{YELLOW}{template_name=} {title=} {language=}{RESET}"
+        print(f"{CYAN}[delete_entities]{RESET} tool called with the parameters: {params}")
+        try:
+            return json.dumps(
+                delete_entities(template_name=template_name, title=title, language=language), default=str
+            )
+        except Exception as exc:
+            return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
+
+    @agent.tool(name="add_thesauri_values")
+    def _add_thesauri_values(
+        ctx: RunContext[UwaziDeps],
+        thesauri_name: str,
+        values: list[str],
+        language: str = "en",
+    ) -> str:
+        """Append new labels to an existing thesaurus (existing values are kept).
+
+        Args:
+            thesauri_name: Name of an existing thesaurus.
+            values: Labels to add.
+            language: ISO 639-1 language code (default 'en').
+        """
+        params = f"{YELLOW}{thesauri_name=} {values=} {language=}{RESET}"
+        print(f"{CYAN}[add_thesauri_values]{RESET} tool called with the parameters: {params}")
+        try:
+            return json.dumps(
+                add_thesauri_values(thesauri_name=thesauri_name, values=values, language=language), default=str
+            )
+        except Exception as exc:
+            return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
+
+    @agent.tool(name="create_page")
+    def _create_page(
+        ctx: RunContext[UwaziDeps],
+        title: str,
+        markdown: str | None = None,
+        javascript: str | None = None,
+        language: str = "en",
+    ) -> str:
+        """Create a page with markdown content and/or a javascript script.
+
+        Args:
+            title: The page title.
+            markdown: Markdown/HTML body for the page.
+            javascript: JavaScript stored on the page (the UI "Javascript" tab).
+            language: ISO 639-1 language code (default 'en').
+        """
+        params = f"{YELLOW}{title=} markdown={bool(markdown)} javascript={bool(javascript)} {language=}{RESET}"
+        print(f"{CYAN}[create_page]{RESET} tool called with the parameters: {params}")
+        try:
+            return json.dumps(
+                create_page(title=title, markdown=markdown, javascript=javascript, language=language), default=str
+            )
+        except Exception as exc:
+            return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
+
+    @agent.tool(name="delete_pages_by_title")
+    def _delete_pages_by_title(
+        ctx: RunContext[UwaziDeps],
+        title: str,
+        language: str = "en",
+    ) -> str:
+        """Delete every page whose title matches exactly.
+
+        Args:
+            title: The exact page title to delete.
+            language: ISO 639-1 language code (default 'en').
+        """
+        params = f"{YELLOW}{title=} {language=}{RESET}"
+        print(f"{CYAN}[delete_pages_by_title]{RESET} tool called with the parameters: {params}")
+        try:
+            return json.dumps(delete_pages_by_title(title=title, language=language), default=str)
         except Exception as exc:
             return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
 
@@ -169,6 +342,45 @@ PROMPTS: dict[str, str] = {
         "the whole database, ignoring case? Return the top 5 letters "
         "with their counts."
     ),
+    # --- Write / admin capabilities (these MODIFY the database) ---
+    "thesauri_list": (
+        "List the thesauri in the database and, for each, how many values "
+        "it currently has."
+    ),
+    "thesauri_add_values": (
+        "Add the values 'Malawi', 'Zambia' and 'Mozambique' to the "
+        "'Country' thesaurus. Skip any that already exist and tell me which "
+        "ones were actually added."
+    ),
+    "thesauri_add_existing_values": (
+        "Add the values 'Malawi', 'Zambia', 'Somalia' and 'Mozambique' to the "
+        "'Country' thesaurus. Skip any that already exist and tell me which "
+        "ones were actually added."
+    ),
+    "entity_create": (
+        "Create a new entity titled 'Test Entity' under the 'BarEntity' "
+        "template, then confirm its sharedId."
+    ),
+    "multiple_entity_create": (
+        "Create 5 new entities titled 'Test Entity' under the 'BarEntity' "
+        "template, then confirm its sharedId."
+    ),
+    "entity_delete": (
+        "Delete every entity in the 'BarEntity' template whose title is "
+        "'Test Entity', and report how many were removed."
+    ),
+    "pages_list": "List the pages in the database with their titles and urls.",
+    "page_create_markdown": (
+        "Create a page titled 'Agent Notes' whose markdown body is a level-1 "
+        "heading 'Agent Notes' followed by the sentence 'Created by the "
+        "Uwazi agent.', then give me its url."
+    ),
+    "page_create_javascript": (
+        "Create a page titled 'Agent Script' that has the javascript "
+        "console.log('hello from the agent'); and a short markdown intro, "
+        "then give me its url."
+    ),
+    "page_delete": "Delete every page titled 'Agent Notes'.",
 }
 
 
@@ -203,14 +415,14 @@ def _run_prompt(model: str, label: str, prompt: str) -> None:
     except Exception as exc:
         print(f"{RED}error: {type(exc).__name__}: {exc}{RESET}")
     print(f"{CYAN}Time taken: {time.time() - start:.2f} seconds{RESET}")
-    print("*" * 100)
+    print(DARK_GRAY_BG + "*" * 100 + RESET)
 
 
 if __name__ == "__main__":
-    models = ["granite4.1:30b"]
-
+    models: list[str] = ["granite4.1:30b"]
+    
     for model in models:
-        load_model(model)
+        load_model(model_name=model)
         for label, prompt in PROMPTS.items():
             _run_prompt(model, label, prompt)
         print("#" * 100)

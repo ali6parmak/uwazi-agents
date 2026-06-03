@@ -16,14 +16,17 @@ MODEL_CLOUD = os.getenv("MODEL_CLOUD", "nemotron-3-super:cloud")
 MODELS = [MODEL_LOCAL, MODEL_CLOUD]
 
 
-RED = "\033[91m"
-GREEN = "\033[92m"
-YELLOW = "\033[93m"
-BLUE = "\033[94m"
-MAGENTA = "\033[95m"
-CYAN = "\033[96m"
-WHITE = "\033[97m"
-RESET = "\033[0m"
+RED: str = "\033[91m"
+GREEN: str = "\033[92m"
+YELLOW: str = "\033[93m"
+BLUE: str = "\033[94m"
+MAGENTA: str = "\033[95m"
+CYAN: str = "\033[96m"
+WHITE: str = "\033[97m"
+DARK_GRAY_BG: str = "\033[100m"
+DARK_ORANGE_BG: str = "\033[48;5;130m"
+GRAY_BG: str = "\033[100m"
+RESET: str = "\033[0m"
 
 if __name__ == "__main__":
     print(f"OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
