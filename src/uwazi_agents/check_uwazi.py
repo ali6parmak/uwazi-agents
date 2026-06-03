@@ -1,4 +1,5 @@
 import json
+import pandas as pd
 from collections import Counter
 from typing import Any
 
@@ -71,6 +72,10 @@ def check_thesauris():
             linked = thesauri_by_id.get(prop.content, prop.content)
             print(f"  {template.name}.{prop.name} → {linked}")
 
+def add_thesauris(template_name: str, property_name: str, values: list[str]):
+    client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
+    df: pd.DataFrame = pd.DataFrame({property_name: values})
+    client.thesauri_from_df.execute(df=df, template_name=template_name, language='en')
 
 def create_entity(title: str, template_name: str, language: str = "en"):
     client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
@@ -100,7 +105,7 @@ def delete_entities(template_name: None | str = None):
         if shared_id:
             shared_ids_to_delete.append(shared_id)
     print(len(shared_ids_to_delete))
-
+    client.entities.delete_entities(shared_ids=shared_ids_to_delete)
 
 
 if __name__ == "__main__":
@@ -108,5 +113,7 @@ if __name__ == "__main__":
     # check_title_letters()
     # create_entity(title="Test", template_name="BarEntity", language="en")
     # create_entity("C Test", "BarEntity", "en")
-    delete_entities(template_name="BarEntity")
+    # delete_entities(template_name="BarEntity")
     # check_thesauris()
+    add_thesauris(template_name="BarEntity", property_name="Country", values=["Malawi", "Zambia", "Mozambique"])
+    # get_thesauris()
