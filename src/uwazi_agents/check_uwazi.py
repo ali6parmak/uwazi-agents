@@ -5,6 +5,7 @@ from typing import Any
 
 from uwazi_api.client import UwaziClient
 from uwazi_api.domain.entity import Entity
+from uwazi_api.domain.property_schema import PropertySchema
 from uwazi_api.domain.template import Template
 from uwazi_api.domain.thesauri import Thesauri
 
@@ -41,7 +42,7 @@ def check_title_letters():
         entities.extend(client.entities.get(template_name=template, language="en", batch_size=10000))
     print(f"Total number of entities: {len(entities)}")
 
-    first_letter_counts = Counter([e.title[0].lower() for e in entities])
+    first_letter_counts = Counter([e.title[0].lower() for e in entities if e.title])
     print(first_letter_counts.most_common(5))
 
 
@@ -111,13 +112,63 @@ def delete_entities(template_name: None | str = None):
     print(len(shared_ids_to_delete))
     client.entities.delete_entities(shared_ids=shared_ids_to_delete)
 
+def get_templates() -> None:
+    client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
+    templates: list[Template] = client.templates.get()
+    for t in templates:
+        print(f"{t.id}, {t.name}" )
+
+    template_fooentity_by_name: Template | None = client.templates.get_by_name(template_name="FooEntity")
+    template_fooentity_by_id: Template | None = client.templates.get_by_id(template_id="6a0d832f2572c9826000bba6")
+
+    if not template_fooentity_by_name or not template_fooentity_by_id:
+        return
+
+    print(f"Template foo entity by name: {template_fooentity_by_name.id} - {template_fooentity_by_name.name}")
+    print(f"Template foo entity by id: {template_fooentity_by_id.id} - {template_fooentity_by_id.name}")
+
+    template_barentity: Template | None = client.templates.get_by_name(template_name="BarEntity")
+    if not template_barentity:
+        return
+    
+    barentity_properties: list[PropertySchema]  = template_barentity.properties
+    print(barentity_properties)
+    
+    print("*"*10)
+    barentity_name: str = template_barentity.name
+    barentity_country_property: PropertySchema = client.templates.find_property(template_name_or_id=barentity_name, prop_name="Country")
+    print(barentity_country_property)
+
+
+def create_template(template_name: str, language: str = "en") -> None:
+    client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
+    template: Template = Template(name=template_name)
+    client.templates.set(language, template)
+
+def delete_template(template_name: str, force_delete=False):
+    client: UwaziClient = UwaziClient(user=UWAZI_USER, password=UWAZI_PASSWORD, url=UWAZI_URL)
+    template: Template | None = client.templates.get_by_name(template_name)
+    if not template:
+        print(f"Template {template_name} not found.")
+        return
+    template_id: str | None = template.id
+    if not template_id:
+        return
+
+    if force_delete:
+       delete_entities(template_name) 
+
+    client.templates.delete_empty_template(template_id)
 
 if __name__ == "__main__":
     # check_uwazi()
     # check_title_letters()
     # create_entity(title="Test", template_name="BarEntity", language="en")
-    # create_entity("C Test", "BarEntity", "en")
+    create_entity("Z Test", "TestEntityTemplate", "en")
     # delete_entities(template_name="BarEntity")
     # check_thesauris()
-    add_thesauris(template_name="BarEntity", property_name="Country", values=["Malawi", "Zambia", "Mozambique"])
+    # add_thesauris(template_name="BarEntity", property_name="Country", values=["Malawi", "Zambia", "Mozambique"])
     # get_thesauris()
+    # get_templates()
+    # create_template("TestEntityTemplate")
+    # delete_template("TestEntityTemplate")
