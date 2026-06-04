@@ -284,7 +284,7 @@ def delete_entities(
     if not template_name and not title:
         raise ValueError("Provide template_name and/or title; refusing to delete every " "entity in the database.")
 
-    c = client()
+    c: UwaziClient = client()
     entities = c.entities.get(
         start_from=0,
         batch_size=9999,
@@ -295,9 +295,10 @@ def delete_entities(
         entities = [e for e in entities if (e.title or "") == title]
 
     matched = [e for e in entities if e.shared_id]
-    shared_ids = [e.shared_id for e in matched]
-    if shared_ids:
-        c.entities.delete_entities(shared_ids=shared_ids)
+    shared_ids: list[str] = [e.shared_id for e in matched if e.shared_id is not None]
+    if not shared_ids:
+        return {}
+    c.entities.delete_entities(shared_ids=shared_ids)
 
     return {
         "deleted_count": len(shared_ids),
