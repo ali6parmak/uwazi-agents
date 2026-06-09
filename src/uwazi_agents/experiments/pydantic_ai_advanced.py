@@ -395,7 +395,7 @@ def _run_prompt(model: str, label: str, prompt: str) -> None:
 
 
 if __name__ == "__main__":
-    models: list[str] = ["granite4.1:30b"]
+    models: list[str] = ["deepseek-v4-flash:cloud"]
 
     for model in models:
         load_model(model_name=model)
